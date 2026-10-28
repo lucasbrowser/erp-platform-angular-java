@@ -13,7 +13,7 @@
 - [ ] Obter access token real via Authorization Code + PKCE e validar audiência na API.
 - [ ] Obter validação de stakeholders para permissões por operação; tenancy do MVP já foi confirmada como uma única empresa.
 
-Permissões por operação precisam de validação de negócio antes da implementação dos módulos; não fazem parte da implementação funcional desta fundação.
+Na Fase 1, permissões por operação ficaram pendentes de validação de negócio; a Etapa 3.1 aplicou no catálogo o menor privilégio já documentado, mantendo a revisão da matriz para módulos futuros.
 
 ## Fase 1.2 — especificação consolidada e OIDC
 
@@ -25,4 +25,15 @@ Permissões por operação precisam de validação de negócio antes da implemen
 - [ ] Conferir settings efetivos do client/mapper importados e validar access token real emitido pelo realm.
 - [ ] Especificar e implementar papéis por operação nos módulos futuros após aprovação de stakeholders.
 
-Não iniciar a fase funcional (catálogo, estoque, vendas ou financeiro) neste backlog.
+Na conclusão da Fase 1, não iniciar módulos funcionais. A autorização posterior da Etapa 3.1 iniciou somente o catálogo backend.
+
+## Etapa 3.1 — backend do catálogo
+
+- [x] Criar migration incremental para categorias e produtos, com FK, unicidade, validações e índices.
+- [x] Implementar APIs paginadas de categorias e produtos com DTOs, validação e erros Problem Details.
+- [x] Aplicar permissões de catálogo no servidor conforme matriz: leitura ADMIN/MANAGER/SALES/STOCK_OPERATOR; escrita ADMIN/MANAGER.
+- [x] Cobrir persistência PostgreSQL, regras e restrições de banco com testes de integração.
+- [x] Executar validação final e revisar o contrato OpenAPI atualizado.
+- [ ] Revisar política de reativação de cadastros com stakeholders antes de criar endpoints de ativação.
+
+Produtos, estoque, vendas e financeiro permanecem fora desta etapa.

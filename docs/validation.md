@@ -1,5 +1,57 @@
 # Validação da fundação
 
+## Etapa 3.1 — catálogo backend (2026-10-28)
+
+### Escopo e decisões
+
+- Implementados cadastros de categorias e produtos em /api/v1, sem frontend, estoque ou outros módulos de negócio.
+- Categorias e produtos usam UUID e preservam histórico por desativação lógica. GET por ID e listagens incluem inativos; listagem de produtos aceita filtro active.
+- Categoria usa nome obrigatório com trim e unicidade sem diferenciar caixa. SKU usa trim e maiúsculas (Locale.ROOT) e é único. Preço é BigDecimal com limite de duas casas e persiste como NUMERIC(14,2), sem valores negativos.
+- Criar produto ou mudar sua categoria exige categoria existente e ativa. Produto associado antes da desativação continua consultável e editável enquanto mantém a mesma categoria.
+- Matriz aplicada no servidor: ADMIN/MANAGER criam, atualizam e desativam; ADMIN/MANAGER/SALES/STOCK_OPERATOR consultam; FINANCE não consulta catálogo. Essa regra concretiza a matriz já documentada em security-model.md.
+- Paginação tem tamanho padrão 20, máximo 100, execução no banco e DTO de resposta estável. Consultas de produto podem filtrar nome, SKU, categoria e estado.
+
+### Persistência e contrato
+
+- V2__catalog_categories_and_products.sql criou tabelas erp.categories e erp.products, FK de produto para categoria, unique index case-insensitive de nome e unique index de SKU, CHECK de normalização/preço, e índices para categoria/estado/nome.
+- V3__catalog_nonblank_constraints.sql acrescentou CHECKs de nomes/SKU trimados e não vazios. V1 foi preservada.
+- Hibernate está em ddl-auto: validate e open-in-view: false. Escritas estão em serviços transacionais; entidades JPA não são retornadas pela API.
+- Atualizado api-contract.yaml com rotas, DTOs, paginação, códigos HTTP e Problem Details. SnakeYAML 2.4 (já disponível transitivamente no classpath Maven) fez parse do documento e confirmou OpenAPI 3.1.0 e 6 rotas. Revisão manual realizada; não há validador semântico OpenAPI instalado/configurado no repositório, então a validação formal de conformidade de schemas/referências permanece pendente.
+
+### Testes e comandos executados
+
+- mvn "-Dmaven.repo.local=C:/Users/lucas/AppData/Local/Temp/erp-core-maven-repository" -B -ntp -f apps/api/pom.xml -Dtest=CatalogIntegrationTest test: BUILD SUCCESS; 8 testes de integração, 0 falhas/erros/skips.
+- mvn "-Dmaven.repo.local=C:/Users/lucas/AppData/Local/Temp/erp-core-maven-repository" -B -ntp -f apps/api/pom.xml verify: BUILD SUCCESS; 25 testes, 0 falhas/erros/skips; JAR empacotado.
+- Testes de catálogo executaram em PostgreSQL 17.11 real no ambiente local. Flyway validou/aplicou V2 e V3; Hibernate validou o mapeamento; verificações SQL exercitaram unicidade, trim, preço e FK.
+- Cobertura HTTP inclui criação, leitura, listagem paginada e filtros, atualização, desativação, validação, 404/409, 401/403, normalização de SKU e comportamento para categoria inativa. Testes de segurança adicionais usam JWTs RSA sintéticos pelo decoder e converter da API para provar leitura SALES, escrita negada a SALES e leitura negada a FINANCE.
+- docker compose -f infra/compose.yaml config --quiet: passou; Docker emitiu aviso de acesso negado à configuração global C:\\Users\\lucas\\.docker\\config.json, sem impedir a resolução do Compose.
+- git diff --check: passou sem erros; apenas avisos de conversão LF/CRLF do Git.
+- Parse YAML do contrato com SnakeYAML 2.4: passou; versão 3.1.0, seis rotas.
+- Não foi necessário iniciar ou apagar volumes do PostgreSQL/Keycloak. Nenhum access token real ou credencial foi usado.
+
+### Exemplo de contrato
+
+POST /api/v1/categories (201):
+
+    {"name":"Hardware","description":"Peças"}
+
+POST /api/v1/products (201):
+
+    {"sku":" ab-120 ","name":"Parafuso","description":null,"categoryId":"<uuid-da-categoria>","price":12.50}
+
+O produto recebe SKU AB-120 e retorna categoryId, price, active, createdAt e updatedAt. GET /api/v1/products?page=0&size=20&name=parafuso&active=true retorna PageResponse com content, page, size, totalElements, totalPages, first e last. Corpos inválidos usam application/problem+json (400), item inexistente 404 e conflito 409.
+
+### Pendências e riscos
+
+- Validador formal OpenAPI continua pendente; o arquivo foi revisado manualmente.
+- Não existe endpoint de reativação de categoria/produto. Registros desativados seguem disponíveis para consulta; decidir política de reativação com stakeholders antes de expor essa operação.
+- A validação OIDC ponta a ponta real permanece pendente conforme registrado abaixo. Os testes do catálogo usam autenticação simulada para HTTP e tokens assinados de teste para integração com a cadeia de segurança; não substituem token real do Keycloak.
+- Não foram implementados testes de concorrência para colisões simultâneas de cadastro; as constraints únicas do PostgreSQL garantem a integridade, com DataIntegrityViolation mapeada a 409.
+
+### Próxima tarefa recomendada
+
+- Revisar a matriz e a política de reativação com stakeholders, validar formalmente api-contract.yaml em CI e completar o smoke OIDC real pendente antes de iniciar a interface Angular do catálogo.
+
 ## Endpoint de identidade atual — 2026-10-28
 
 ### Contrato implementado

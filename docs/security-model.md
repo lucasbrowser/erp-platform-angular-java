@@ -10,13 +10,14 @@
 
 ## Perfis e operações previstas
 
-Perfis são roles do realm. Este mapa inicial define o menor privilégio pretendido para operações futuras; não cria endpoints funcionais nesta fase.
+Perfis são roles do realm. A matriz inicial define o menor privilégio por operação. Para o módulo de catálogo implementado nesta etapa, a API aplica diretamente no servidor a leitura abaixo e restringe criação, atualização e desativação a ADMIN/MANAGER.
 
 | Operação | ADMIN | MANAGER | SALES | STOCK_OPERATOR | FINANCE |
 |---|---:|---:|---:|---:|---:|
 | Administrar usuários e atribuir perfis | Sim | Não | Não | Não | Não |
 | Consultar cadastros de produtos | Sim | Sim | Sim | Sim | Não |
 | Criar/editar cadastros de produtos | Sim | Sim | Não | Não | Não |
+| Desativar categorias e produtos | Sim | Sim | Não | Não | Não |
 | Consultar estoque | Sim | Sim | Sim | Sim | Não |
 | Registrar movimentação/ajuste de estoque | Sim | Não | Não | Sim | Não |
 | Criar e consultar vendas | Sim | Sim | Sim | Não | Não |
@@ -25,7 +26,9 @@ Perfis são roles do realm. Este mapa inicial define o menor privilégio pretend
 | Registrar baixa manual de contas | Sim | Não | Não | Não | Sim |
 | Consultar relatórios operacionais | Sim | Sim | Conforme módulo | Conforme módulo | Conforme módulo |
 
-ADMIN representa administração técnica do ERP, não autorização para ignorar validações de domínio. A matriz requer validação do negócio antes dos módulos funcionais; acesso a dados pessoais e alterações privilegiadas devem ser auditados.
+ADMIN representa administração técnica do ERP, não autorização para ignorar validações de domínio. A matriz ainda requer validação do negócio para módulos além do catálogo; acesso a dados pessoais e alterações privilegiadas devem ser auditados.
+
+No catálogo, categorias seguem as mesmas permissões de leitura e escrita dos produtos. As rotas de leitura exigem ROLE_ADMIN, ROLE_MANAGER, ROLE_SALES ou ROLE_STOCK_OPERATOR; operações de escrita exigem ROLE_ADMIN ou ROLE_MANAGER. FINANCE não recebe acesso ao catálogo. Essa política aplica-se na API com @PreAuthorize; ocultar ações na interface não substitui a autorização do servidor.
 
 ## Superfície pública e ambiente local
 

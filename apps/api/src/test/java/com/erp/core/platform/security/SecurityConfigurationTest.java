@@ -168,6 +168,25 @@ class SecurityConfigurationTest {
     }
 
     @Test
+    void productionRoleMappingAllowsSalesCatalogReadAndDeniesCatalogWrite() throws Exception {
+        String token = bearer("SALES", ISSUER, "erp-core-api");
+        mockMvc.perform(get("/api/v1/categories").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/categories")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Security test category\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void productionRoleMappingDeniesFinanceCatalogRead() throws Exception {
+        mockMvc.perform(get("/api/v1/products").header("Authorization",
+                        "Bearer " + bearer("FINANCE", ISSUER, "erp-core-api")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void mapsOnlyKnownRealmRolesToSpringAuthorities() {
         Jwt jwt = Jwt.withTokenValue("test")
                 .header("alg", "none")
