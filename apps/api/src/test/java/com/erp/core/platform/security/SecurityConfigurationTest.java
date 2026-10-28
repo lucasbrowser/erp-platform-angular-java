@@ -1,5 +1,6 @@
 package com.erp.core.platform.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
@@ -27,7 +28,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -51,6 +51,7 @@ class SecurityConfigurationTest {
     @Autowired JwtEncoder jwtEncoder;
     @Autowired JwtDecoder jwtDecoder;
     @Autowired Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter;
+    @Autowired ObjectMapper objectMapper;
 
     @DynamicPropertySource
     static void jwksUri(DynamicPropertyRegistry registry) {
@@ -71,6 +72,50 @@ class SecurityConfigurationTest {
     @Test
     void protectedEndpointWithoutTokenReturns401() throws Exception {
         mockMvc.perform(get("/api/v1/security/manager")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void currentIdentityWithoutTokenReturns401() throws Exception {
+        mockMvc.perform(get("/api/v1/platform/me")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void currentIdentityRejectsMalformedToken() throws Exception {
+        mockMvc.perform(get("/api/v1/platform/me").header("Authorization", "Bearer not-a-jwt"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void currentIdentityReturnsOnlySubjectAndProductionAuthorities() throws Exception {
+        String token = bearer("SALES", ISSUER, "erp-core-api");
+        Jwt decoded = jwtDecoder.decode(token);
+        List<String> expectedAuthorities = jwtAuthenticationConverter.convert(decoded).getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .sorted()
+                .toList();
+
+        String response = mockMvc.perform(get("/api/v1/platform/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        assertThat(objectMapper.readTree(response)).isEqualTo(objectMapper.valueToTree(Map.of(
+                "userId", decoded.getSubject(),
+                "authorities", expectedAuthorities)));
+    }
+
+    @Test
+    void currentIdentityRejectsWrongIssuer() throws Exception {
+        mockMvc.perform(get("/api/v1/platform/me")
+                        .header("Authorization", "Bearer " + bearer("SALES", "https://wrong-issuer")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void currentIdentityRejectsWrongAudience() throws Exception {
+        mockMvc.perform(get("/api/v1/platform/me")
+                        .header("Authorization", "Bearer " + bearer("SALES", ISSUER, "another-api")))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

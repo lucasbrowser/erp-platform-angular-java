@@ -21,6 +21,32 @@ paths:
                   status:
                     type: string
                     example: UP
+  /api/v1/platform/me:
+    get:
+      summary: Identidade do principal autenticado
+      description: Retorna somente o subject OIDC (claim sub) e authorities reconhecidas pelo servidor. Não aceita identidade fornecida pelo cliente e nunca retorna tokens.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Principal autenticado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [userId, authorities]
+                additionalProperties: false
+                properties:
+                  userId:
+                    type: string
+                    description: Subject OIDC (claim sub)
+                  authorities:
+                    type: array
+                    items:
+                      type: string
+                    example: [ROLE_SALES]
+        '401':
+          description: Access token ausente ou inválido
   /api/v1:
     get:
       summary: Reservado para recursos versionados futuros

@@ -1,5 +1,44 @@
 # Validação da fundação
 
+## Endpoint de identidade atual — 2026-10-28
+
+### Contrato implementado
+
+- `GET /api/v1/platform/me` exige autenticação bearer. Retorna exatamente `userId` e `authorities`.
+- `userId` vem exclusivamente do `sub` do JWT já validado pelo Spring Security. `authorities` contém as authorities `ROLE_*` resultantes do converter de produção, ordenadas; apenas roles ERP conhecidas são convertidas. Não são retornados tokens, claims adicionais ou credenciais.
+- A rota não exige role específica: permite que qualquer principal autenticado consulte sua própria identidade. Com token válido sem roles ERP, `authorities` deve ser vazio; ausência/invalidez de autenticação resulta em 401.
+- Nenhuma validação ou configuração de segurança foi afrouxada. Issuer, assinatura, expiração e audience continuam validados pelo decoder de produção.
+
+### Validação automatizada
+
+- `mvn "-Dmaven.repo.local=C:/Users/lucas/AppData/Local/Temp/erp-core-maven-repository" -B -ntp -f apps/api/pom.xml verify`: **BUILD SUCCESS** em 2026-10-28; 15 testes executados, 0 falhas, 0 erros, 0 ignorados. Flyway validou a migração existente no PostgreSQL 17.11 e o JAR foi empacotado.
+- `SecurityConfigurationTest` (14 testes): inclui `/me` sem token (401), token malformado (401), resposta exata com somente os dois campos, comparação das authorities com o converter de produção, issuer e audience incorretos rejeitados, além dos testes anteriores de expiração, assinatura/roles e 403 de operação protegida de teste.
+- A resposta exata foi comparada como JSON estrutural, assegurando ausência de propriedades extras. Tokens de teste são sintéticos e assinados com chave efêmera; isso não equivale a um token emitido pelo Keycloak.
+- `git diff --check`: executado; sem erros de whitespace (Git emitiu apenas avisos de conversão LF/CRLF configurada no working tree).
+
+### Procedimento manual para validar com Keycloak
+
+1. Inicie a stack local com `docker compose -f infra/compose.yaml up -d`. Use apenas contas locais de desenvolvimento cujas credenciais foram provisionadas fora do Git. O cliente é `erp-core-web`, com callback local `http://localhost:4200/oidc-callback`; use um cliente OIDC que implemente Authorization Code com PKCE S256. Não use implicit flow nem direct access grants.
+2. Entre com uma conta descartável não privilegiada. O cliente deve trocar o código no token endpoint usando o `code_verifier` em memória. Não copie o código, verifier, access token ou refresh token para arquivos, terminal gravado ou logs.
+3. Inspecione o **access token** localmente no próprio cliente OIDC, sem imprimir seu valor. Confira apenas `iss`, `aud`, `exp` e `realm_access.roles`: issuer `http://localhost:8081/realms/erp-core`, audience contendo `erp-core-api`, expiração futura e as roles atribuídas à conta. Não decodifique nem envie o ID token como credencial da API. A API valida assinatura usando o JWKS, issuer, expiração e audience.
+4. Com a variável `$accessToken` mantida somente na sessão local pelo cliente OIDC e sem ativar transcript/log de headers, faça a chamada no PowerShell:
+
+   ```powershell
+   Invoke-RestMethod -Method Get -Uri 'http://localhost:8082/api/v1/platform/me' -Headers @{ Authorization = "Bearer $accessToken" }
+   $accessToken = $null
+   ```
+
+   O resultado esperado é um objeto com somente `userId` e `authorities`. Para verificar a ausência de autenticação, repita sem o header e espere HTTP 401. Não há exigência de role em `/me`; um principal autenticado sem roles recebe 200 e lista vazia. A verificação de 403 exige uma operação protegida por role; por enquanto ela é coberta pelo endpoint fixture de teste, sem endpoint de diagnóstico permanente.
+
+### Resultado OIDC real e limitações
+
+- `curl.exe` e PowerShell acessaram `http://localhost:8081/realms/erp-core/.well-known/openid-configuration` durante esta execução: HTTP 200; issuer `http://localhost:8081/realms/erp-core` e endpoints de autorização, token e JWKS estavam presentes. A API foi iniciada localmente na porta 8082; `/api/v1/platform/me` sem bearer token respondeu HTTP 401. O processo foi encerrado depois do smoke.
+- Nenhum access token real foi obtido nesta execução e nenhuma chamada autenticada ao endpoint foi feita. Portanto, o fluxo OIDC ponta a ponta e a inclusão efetiva da audience/roles em access tokens reais permanecem **pendentes**. A disponibilidade do navegador/conta de desenvolvimento e a chamada autenticada ainda precisam ser verificadas seguindo o procedimento acima.
+
+### Próxima tarefa recomendada
+
+- Completar a validação manual Authorization Code + PKCE com uma conta SALES não privilegiada: confirmar claims localmente sem revelar token, chamar `/api/v1/platform/me`, registrar somente status HTTP e nomes das claims/roles observadas. Em seguida, estabelecer uma operação protegida por role quando o primeiro recurso funcional for aprovado e validar 403 com token sem a permissão.
+
 ## Fase 1.2 — especificação consolidada e OIDC (2026-10-28)
 
 ### Estado e escopo
