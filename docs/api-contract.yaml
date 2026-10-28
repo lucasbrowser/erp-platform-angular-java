@@ -1,0 +1,40 @@
+openapi: 3.1.0
+info:
+  title: ERP Core API
+  version: 1.0.0
+  description: Contrato técnico inicial; não há recursos de negócio nesta fase.
+servers:
+  - url: http://localhost:8080
+paths:
+  /actuator/health:
+    get:
+      summary: Estado de saúde básico da API
+      security: []
+      responses:
+        '200':
+          description: Processo disponível
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: UP
+  /api/v1:
+    get:
+      summary: Reservado para recursos versionados futuros
+      description: Nenhum recurso é publicado nesta rota até existir contrato de negócio aprovado.
+      security:
+        - bearerAuth: []
+      responses:
+        '401':
+          description: Token bearer ausente ou inválido
+        '404':
+          description: Recurso ainda não implementado
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

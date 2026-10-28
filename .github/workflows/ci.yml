@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    container:
+      image: maven:3.9.16-eclipse-temurin-21
+    services:
+      postgres:
+        image: postgres:17.11-alpine3.24
+        env:
+          POSTGRES_DB: erp_core
+          POSTGRES_USER: erp_ci
+          POSTGRES_PASSWORD: erp_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U erp_ci -d erp_core"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/erp_core
+      DATABASE_USERNAME: erp_ci
+      DATABASE_PASSWORD: erp_ci
+      OIDC_ISSUER_URI: http://localhost:8081/realms/erp-core
+      OIDC_JWKS_URI: http://localhost:8081/realms/erp-core/protocol/openid-connect/certs
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21.0.10'
+          cache: maven
+      - name: Verify backend, tests, and Flyway migrations
+        run: mvn -B -ntp -f apps/api/pom.xml verify
+
+  frontend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: '22.22.3'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install pinned npm
+        run: npm install --global npm@11.6.2
+      - name: Install pinned frontend dependencies
+        working-directory: apps/web
+        run: npm ci --no-audit --no-fund
+      - name: Lint and format check
+        working-directory: apps/web
+        run: npm run lint
+      - name: Unit tests
+        working-directory: apps/web
+        run: npm test -- --watch=false
+      - name: Production build
+        working-directory: apps/web
+        run: npm run build

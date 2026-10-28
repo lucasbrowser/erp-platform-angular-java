@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: erp-core-api
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/erp_core}
+    username: ${DATABASE_USERNAME:erp_dev}
+    password: ${DATABASE_PASSWORD:erp_dev}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8081/realms/erp-core}
+          jwk-set-uri: ${OIDC_JWKS_URI:http://localhost:8081/realms/erp-core/protocol/openid-connect/certs}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+
