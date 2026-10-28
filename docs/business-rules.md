@@ -1,11 +1,14 @@
-# Regras de negócio (baseline)
+# Regras de negócio (baseline consolidada)
 
-Não há regras transacionais de negócio implementadas ou aprovadas para esta fase.
+Estas regras foram confirmadas para o MVP e guiam o desenho futuro. Não implementam processos nesta fase.
 
-1. Todo dado persistido no futuro deverá pertencer a uma organização/tenant se o produto validar o requisito de multiempresa; o modelo e o isolamento ainda precisam ser decididos.
-2. Mudanças relevantes deverão ser atribuíveis a um principal autenticado.
-3. Nenhuma operação de negócio poderá ser considerada concluída se sua transação persistente falhar.
-4. Autorização deverá ser verificada no servidor em cada operação, independentemente do estado da interface.
-5. Migrações de banco não devem remover ou reescrever dados existentes sem plano de compatibilidade aprovado.
+1. **Uma empresa:** o MVP atende uma única empresa. Cadastros não carregam `tenant_id`; multi-tenancy está fora do escopo.
+2. **Autorização no servidor:** cada operação futura exige permissão conferida pela API. A interface não é uma barreira de segurança.
+3. **Estoque negativo proibido:** uma venda só pode ser confirmada se houver saldo suficiente para todos os itens; confirmação deve falhar integralmente caso contrário. Reservas, concorrência, devoluções, ajustes e arredondamentos ainda precisam de detalhamento antes da implementação.
+4. **Baixas manuais:** contas a pagar e a receber serão liquidadas por baixa manual. Integração bancária automática não faz parte do MVP.
+5. **Fiscal fora do escopo:** emissão fiscal não faz parte do MVP.
+6. **Consistência:** operação não está concluída se a transação persistente falhar; regras de consistência devem ser aplicadas no backend.
+7. **Auditoria:** mudanças relevantes devem registrar principal autenticado, momento e ação, com retenção a especificar.
+8. **Migrações:** migrações compartilhadas são append-only e não removem/regravam dados sem plano de compatibilidade aprovado.
 
-Estas são restrições arquiteturais provisórias, não política fiscal, comercial ou de estoque. A fase de descoberta deve especificar regras, exceções, arredondamentos, estados e retenção de auditoria antes da implementação funcional.
+Perfis iniciais e acesso por operação estão em [Modelo de segurança](security-model.md). Estados, exceções, segregação de funções e limites de aprovação permanecem para detalhamento com stakeholders antes de código de negócio.

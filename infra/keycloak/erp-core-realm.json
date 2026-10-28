@@ -1,0 +1,64 @@
+{
+  "realm": "erp-core",
+  "enabled": true,
+  "displayName": "ERP Core (desenvolvimento local)",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      { "name": "ADMIN", "description": "Administração da aplicação" },
+      { "name": "MANAGER", "description": "Gestão operacional" },
+      { "name": "SALES", "description": "Operações de vendas" },
+      { "name": "STOCK_OPERATOR", "description": "Operações de estoque" },
+      { "name": "FINANCE", "description": "Operações financeiras" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "erp-core-web",
+      "name": "ERP Core Web (local)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:4200/*"],
+      "webOrigins": ["http://localhost:4200"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "ERP Core API audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "erp-core-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "erp-core-api",
+      "name": "ERP Core API (resource server audience)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [],
+      "webOrigins": []
+    }
+  ]
+}

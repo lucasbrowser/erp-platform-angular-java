@@ -2,7 +2,7 @@
 
 ## Visão
 
-ERP Core será uma plataforma web para apoiar operações administrativas de pequenas e médias empresas, com módulos coesos sobre uma base única de dados, identidade e auditoria. A primeira entrega futura deverá validar os limites modulares e os fluxos de operação antes de ampliar o escopo.
+ERP Core será uma plataforma web para apoiar operações administrativas de uma pequena ou média empresa, com módulos coesos sobre uma base única de dados, identidade e auditoria. O MVP atende uma empresa e seus múltiplos usuários; multi-tenancy não faz parte do escopo.
 
 ## Objetivos
 
@@ -14,10 +14,10 @@ ERP Core será uma plataforma web para apoiar operações administrativas de peq
 
 Documentação de produto e decisões; esqueleto Angular e Spring; integração técnica PostgreSQL/Flyway; execução local com Keycloak; verificações automatizadas. Não há entidades persistidas de negócio, telas funcionais, cadastro/login customizado, produtos, estoque, vendas ou financeiro.
 
-## Fora do escopo do produto inicial
+## Fora do escopo do MVP
 
-Multiempresa avançada, fiscalidade, contabilidade, integrações de pagamento, aplicativo móvel, microsserviços e alta disponibilidade distribuída. Essas decisões dependem de descoberta de negócio.
+Multi-tenancy, emissão fiscal, integrações bancárias automáticas, aplicativo móvel, microsserviços e alta disponibilidade distribuída. O financeiro prevê baixa manual de contas a pagar e receber.
 
 ## Usuários previstos
 
-Administradores da organização, operadores e gestores. Permissões, limites de acesso e jornadas concretas permanecem pendentes de validação com stakeholders.
+Usuários com perfis iniciais ADMIN, MANAGER, SALES, STOCK_OPERATOR e FINANCE. A matriz inicial de operações está em `security-model.md`; detalhes e segregação de funções devem ser validados antes da implementação funcional.

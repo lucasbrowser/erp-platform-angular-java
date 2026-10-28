@@ -24,12 +24,14 @@ paths:
   /api/v1:
     get:
       summary: Reservado para recursos versionados futuros
-      description: Nenhum recurso é publicado nesta rota até existir contrato de negócio aprovado.
+      description: Nenhum recurso é publicado nesta rota até existir contrato de negócio aprovado. Recursos futuros aceitam access tokens OIDC do issuer Keycloak configurado com audience erp-core-api; ID tokens não são aceitos.
       security:
         - bearerAuth: []
       responses:
         '401':
-          description: Token bearer ausente ou inválido
+          description: Access token bearer ausente, inválido, expirado, com issuer não confiável ou sem a audiência da API
+        '403':
+          description: Access token válido, mas sem a permissão exigida pela operação
         '404':
           description: Recurso ainda não implementado
 components:

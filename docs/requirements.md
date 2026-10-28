@@ -7,6 +7,9 @@
 - RF-03: registrar autoria e momento das alterações relevantes.
 - RF-04: expor recursos da API sob `/api/v1` com contratos versionados.
 - RF-05: inicializar e atualizar o esquema por migrações versionadas.
+- RF-06: o MVP atende uma única empresa, com múltiplos usuários e perfis de acesso.
+- RF-07: bloquear confirmação de venda sem estoque suficiente; estoque negativo é proibido.
+- RF-08: contas a pagar e a receber terão baixas manuais.
 
 RF-01 a RF-05 são requisitos de direção; não autorizam implementar funcionalidades de negócio nesta fase. O contrato e a API entregues limitam-se a infraestrutura e health.
 
@@ -21,6 +24,8 @@ RF-01 a RF-05 são requisitos de direção; não autorizam implementar funcional
 - RNF-07: execução local reproduzível via Docker Compose.
 - RNF-08: migrações são append-only após compartilhadas.
 - RNF-09: segredos de produção devem vir de secret manager do ambiente de implantação.
+- RNF-10: a API valida assinatura, issuer, validade e audiência de access tokens Keycloak e nega acesso por padrão.
+- RNF-11: autorização é aplicada no servidor por operação; controles de interface são apenas conveniência.
 
 ## Critérios de aceite da Fase 1
 
@@ -30,3 +35,7 @@ RF-01 a RF-05 são requisitos de direção; não autorizam implementar funcional
 - Compose liga PostgreSQL e Keycloak em portas de loopback.
 - CI executa as verificações e versões/ações fixadas estão registradas.
 - Resultados locais e limitações estão documentados com evidência real.
+
+## Fora do escopo confirmado do MVP
+
+Multi-tenancy, emissão fiscal e integrações bancárias automáticas. RF-06 a RF-08 especificam resultados desejados, mas não autorizam implementar funcionalidades de negócio na fundação técnica.

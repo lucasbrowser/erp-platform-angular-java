@@ -45,7 +45,9 @@ npm ci
 npm start
 ```
 
-API: http://localhost:8080/actuator/health (ou `http://localhost:8082/actuator/health` quando `SERVER_PORT=8082`). PostgreSQL local: porta 5433 (a 5432 já estava ocupada no ambiente inspecionado). Keycloak de desenvolvimento: http://localhost:8081. O realm e o cliente OIDC serão configurados na etapa de autenticação; a API protege a rota `/api/**` com bearer JWT e deixa somente o health check público.
+API: http://localhost:8080/actuator/health (ou `http://localhost:8082/actuator/health` quando `SERVER_PORT=8082`). PostgreSQL local: porta 5433. Keycloak de desenvolvimento: http://localhost:8081. O Compose importa `erp-core` a partir de `infra/keycloak/erp-core-realm.json` quando o realm ainda não existe. O cliente web usa Authorization Code + PKCE S256; a API valida access tokens com issuer e audience `erp-core-api`. A conta bootstrap do Keycloak é apenas de desenvolvimento local e seus valores devem ser trocados no `.env` não versionado.
+
+Para aplicar mudanças ao realm que já foi criado, revise a configuração versionada e aplique as alterações por Admin REST API ou `kcadm.sh`; o import no startup ignora realms existentes para preservar usuários e estado.
 
 ## Verificações
 
