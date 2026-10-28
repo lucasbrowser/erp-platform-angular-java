@@ -71,7 +71,7 @@ O produto recebe SKU AB-120 e retorna categoryId, price, active, createdAt e upd
 ### Procedimento manual para validar com Keycloak
 
 1. Inicie a stack local com `docker compose -f infra/compose.yaml up -d`. Use apenas contas locais de desenvolvimento cujas credenciais foram provisionadas fora do Git. O cliente é `erp-core-web`, com callback local `http://localhost:4200/oidc-callback`; use um cliente OIDC que implemente Authorization Code com PKCE S256. Não use implicit flow nem direct access grants.
-2. Entre com uma conta descartável não privilegiada. O cliente deve trocar o código no token endpoint usando o `code_verifier` em memória. Não copie o código, verifier, access token ou refresh token para arquivos, terminal gravado ou logs.
+2. Entre somente com uma conta de desenvolvimento legítima já existente. Não crie contas nem altere roles para este smoke. O cliente deve trocar o código no token endpoint usando o `code_verifier` em memória. Não copie o código, verifier, access token ou refresh token para arquivos, terminal gravado ou logs.
 3. Inspecione o **access token** localmente no próprio cliente OIDC, sem imprimir seu valor. Confira apenas `iss`, `aud`, `exp` e `realm_access.roles`: issuer `http://localhost:8081/realms/erp-core`, audience contendo `erp-core-api`, expiração futura e as roles atribuídas à conta. Não decodifique nem envie o ID token como credencial da API. A API valida assinatura usando o JWKS, issuer, expiração e audience.
 4. Com a variável `$accessToken` mantida somente na sessão local pelo cliente OIDC e sem ativar transcript/log de headers, faça a chamada no PowerShell:
 
@@ -80,7 +80,7 @@ O produto recebe SKU AB-120 e retorna categoryId, price, active, createdAt e upd
    $accessToken = $null
    ```
 
-   O resultado esperado é um objeto com somente `userId` e `authorities`. Para verificar a ausência de autenticação, repita sem o header e espere HTTP 401. Não há exigência de role em `/me`; um principal autenticado sem roles recebe 200 e lista vazia. A verificação de 403 exige uma operação protegida por role; por enquanto ela é coberta pelo endpoint fixture de teste, sem endpoint de diagnóstico permanente.
+   O resultado esperado é um objeto com somente `userId` e `authorities`. Para verificar a ausência de autenticação, repita sem o header e espere HTTP 401. Não há exigência de role em `/me`; um principal autenticado sem roles recebe 200 e lista vazia. Em seguida, consulte `http://localhost:8082/api/v1/products` com a mesma variável: uma role ADMIN, MANAGER, SALES ou STOCK_OPERATOR deve receber 200; uma conta FINANCE sem role de leitura do catálogo deve receber 403.
 
 ### Resultado OIDC real e limitações
 
@@ -89,7 +89,7 @@ O produto recebe SKU AB-120 e retorna categoryId, price, active, createdAt e upd
 
 ### Próxima tarefa recomendada
 
-- Completar a validação manual Authorization Code + PKCE com uma conta SALES não privilegiada: confirmar claims localmente sem revelar token, chamar `/api/v1/platform/me`, registrar somente status HTTP e nomes das claims/roles observadas. Em seguida, estabelecer uma operação protegida por role quando o primeiro recurso funcional for aprovado e validar 403 com token sem a permissão.
+- Completar a validação manual Authorization Code + PKCE com uma conta de leitura do catálogo já existente: confirmar claims localmente sem revelar token, chamar `/api/v1/platform/me` e `GET /api/v1/products`, registrando apenas status HTTP. Se houver conta FINANCE existente sem role de catálogo, confirmar 403 nessa leitura.
 
 ## Fase 1.2 — especificação consolidada e OIDC (2026-10-28)
 
@@ -138,16 +138,16 @@ O produto recebe SKU AB-120 e retorna categoryId, price, active, createdAt e upd
 
 - O controle de navegador CUA falhou ao inicializar (kernel encerrou antes de disponibilizar navegador). Nenhuma conta de teste foi provisionada nesta tentativa, e nenhum Authorization Code foi trocado por token.
 - Sem login interativo, não foi inspecionado nenhum access token real: a audience `erp-core-api`, `realm_access.roles` e a distinção access token/ID token ainda não foram confirmadas em emissão efetiva. Também não foi feita chamada autenticada à API.
-- A API não tem atualmente uma rota operacional com autorização por role: `/api/**` exige autenticação, mas não existe endpoint funcional com `@PreAuthorize`. Por isso não há como observar 403 com um usuário real sem adicionar um endpoint de diagnóstico/negócio, o que ficou fora do escopo. Os testes automatizados anteriores comprovam 403 com JWT de teste no endpoint de teste da suíte.
+- Na data daquela tentativa, a rota funcional autorizada por role ainda não estava disponível. A Etapa 3.1 implementou autorização no catálogo; nesta tarefa o smoke real pode usar `GET /api/v1/products` para observar 200 ou 403, conforme a role da conta já existente.
 - Não foram usados implicit flow, direct access grants, senha de usuário ou credenciais administrativas pela API nesta tentativa. Nenhum token, código ou segredo foi registrado.
 
 ### Procedimento manual seguro para concluir
 
-1. Com Keycloak local ativo, entrar no Admin Console usando a credencial local configurada fora do Git; criar um usuário descartável de desenvolvimento e atribuir somente a role `SALES`. Não reutilizar conta privilegiada nem registrar a senha.
+1. Com Keycloak local ativo, usar somente uma conta de desenvolvimento legítima já existente e com perfil apropriado. Esta validação não cria usuários nem altera atribuições de roles; se não houver conta SALES/STOCK_OPERATOR existente, deixar as chamadas autenticadas pendentes.
 2. Usar um cliente OIDC local compatível com Authorization Code + PKCE S256, client ID `erp-core-web` e callback `http://localhost:4200/oidc-callback` (permitida pelo redirect local). Não usar implicit/direct grant nem ferramentas externas para decodificar tokens.
 3. Deixar o cliente trocar o código usando seu `code_verifier`. Inspecionar localmente, sem imprimir token: `iss`, `exp`, `aud`, `realm_access.roles` e o campo `token_type`/tipo do resultado. Confirmar issuer esperado, audience `erp-core-api`, role `SALES` e enviar somente o **access token** à API (nunca o ID token).
-4. Chamar `GET http://localhost:8082/api/v1/example` com `Authorization: Bearer <access_token>` em cliente local que não registre headers. Um resultado diferente de 401 comprova autenticação; atualmente a rota inexistente retorna 404 depois da autenticação.
-5. Para observar 403 real, repetir contra uma futura operação com autorização de role definida (ou fixture de integração local equivalente) e token de usuário sem essa role. Não introduzir endpoint permanente apenas para o smoke.
+4. Chamar `GET http://localhost:8082/api/v1/platform/me` com o access token mantido em memória; esperar 200 e somente `userId`/`authorities` na resposta. Em seguida, chamar `GET http://localhost:8082/api/v1/products`: esperar 200 para ADMIN, MANAGER, SALES ou STOCK_OPERATOR, e 403 para FINANCE sem uma role de leitura do catálogo.
+5. Repetir `GET /api/v1/products` sem o header bearer e esperar 401. Não introduzir endpoints de diagnóstico nem alterar roles para obter os resultados.
 
 Até cumprir esses passos, a validação OIDC ponta a ponta continua **pendente**; a configuração declarativa e os endpoints públicos do provedor foram verificados, mas não se afirma integração autenticada real.
 
@@ -190,3 +190,32 @@ Até cumprir esses passos, a validação OIDC ponta a ponta continua **pendente*
 - Conferir configurações efetivas de client/mapper no Admin Console e atribuir roles a usuários locais sem versionar senhas.
 - Obter revisão de stakeholders para a matriz de permissões antes de implementar operações.
 - Revisar imagem Docker por digest antes de uso em ambientes compartilhados/produção.
+
+## Etapa 3.1.1 — estabilização do catálogo (2026-10-28)
+
+### Inspeção e contrato
+
+- `git status --short` e `git diff` foram inspecionados antes das alterações; a árvore estava limpa. Migrations e volumes existentes foram preservados.
+- Adicionado `swagger-parser-v3` 2.1.48 com escopo `test`, versão fixada. O projeto não tinha ferramenta semântica OpenAPI; Swagger Parser declara suporte à especificação 3.1 desde a linha 2.1.0. A validação está em `OpenApiContractTest`, então roda no `mvn verify` e rejeita mensagens de validação, versão divergente, rotas ou métodos diferentes dos controllers.
+- O teste semântico passou: OpenAPI 3.1.0, sete caminhos, métodos GET/POST/PUT/DELETE esperados e referências resolvidas, sem mensagens de validação. Inclui `/actuator/info`, exposto pelo Actuator mas negado por padrão (401 sem token e 403 com token válido). A revisão comparou filtros `name`, `sku`, `categoryId`, `active`, paginação `page`/`size`, ordenação `sort`, UUID, nulabilidade, precisão e limite decimal, Problem Details, Bearer, 401/403 e respostas 201/204/400/404/409 com controllers, DTOs, validação e handler de erros.
+- Divergências corrigidas em `api-contract.yaml`: schemas de request não mais proíbem propriedades extras, pois o desserializador atual ignora propriedades desconhecidas; respostas de Categoria/Produto declaram `description` como obrigatório e nullable, tal como os records serializados; requisitos `@NotBlank` e limite superior de `BigDecimal` foram representados; resposta Problem Details declara seus campos garantidos; e a ordenação padrão `name,asc` ficou documentada. Não houve mudança de comportamento da API.
+- Atualizações de Categoria e Produto não recebem nem escrevem `active`. Testes de integração agora enviam `active:true` depois da desativação e verificam que o estado continua falso. Reativação permanece sem operação explícita e pendente de decisão funcional; desativação lógica/histórico foram preservados.
+
+### Validações executadas
+
+- `mvn "-Dmaven.repo.local=C:/Users/lucas/AppData/Local/Temp/erp-core-maven-repository" -B -ntp -f apps/api/pom.xml verify`: **BUILD SUCCESS**, 27 testes, 0 falhas, 0 erros, 0 ignorados; Flyway validou três migrations e o PostgreSQL 17.11 já estava na versão 3. A primeira tentativa em sandbox não alcançou Maven Central; a execução autorizada com acesso à rede baixou o validador e concluiu o build.
+- `docker compose -f infra/compose.yaml config --quiet`: **passou**; Docker reportou acesso negado à configuração global `C:\Users\lucas\.docker\config.json`, mas a configuração Compose foi validada.
+- `git diff --check`: **passou**, sem erros; Git emitiu somente avisos de conversão LF/CRLF.
+- Discovery `GET http://localhost:8081/realms/erp-core/.well-known/openid-configuration`: HTTP 200 durante a inspeção; issuer `http://localhost:8081/realms/erp-core`, authorization endpoint, token endpoint e JWKS anunciados no realm esperado. A API iniciada localmente em `localhost:8082` respondeu `GET /actuator/health` 200, `GET /api/v1/platform/me` sem bearer 401 e `GET /api/v1/products` sem bearer 401; o processo da API foi encerrado após as sondagens. Nenhum serviço persistente foi parado e nenhum volume foi apagado.
+
+### Smoke OIDC real: pendente
+
+- Realm declarativo conferido: `erp-core`; cliente `erp-core-web` público; Authorization Code habilitado; PKCE `S256`; redirect local `http://localhost:4200/*`; web origin `http://localhost:4200`; implicit, direct grants e service accounts desabilitados. O mapper inclui audience `erp-core-api` no access token e não no ID token. As roles de realm são ADMIN, MANAGER, SALES, STOCK_OPERATOR e FINANCE. O export não contém usuários. O Admin Console/Admin REST não foi consultado nesta tarefa; portanto, as opções efetivas do realm já importado não foram revalidadas nesta execução.
+- Não foi obtido token real nem realizada chamada autenticada. A discovery comprova que o provedor responde, mas não comprova emissão efetiva de audience/roles. A conta local legítima disponível e a integração OIDC do frontend não foram verificadas; portanto `/me` e leitura autenticada (200) e leitura sem role (403) permanecem pendentes. O caso sem bearer (401) foi observado por HTTP real nesta execução. Os testes automatizados também cobrem 401/403 com autenticação simulada.
+- Para execução humana: (1) iniciar PostgreSQL/Keycloak com `docker compose -f infra/compose.yaml up -d` e a API com `mvn "-Dmaven.repo.local=C:/Users/lucas/AppData/Local/Temp/erp-core-maven-repository" -B -ntp -f apps/api/pom.xml spring-boot:run "-Dspring-boot.run.arguments=--server.port=8082"`; (2) conferir discovery e issuer acima; (3) usar um cliente OIDC local que implemente Authorization Code + PKCE S256, client ID `erp-core-web`, callback `http://localhost:4200/oidc-callback` e somente conta legítima já existente; o pedido de autorização deve incluir `response_type=code`, `scope=openid`, `state`, `code_challenge` e `code_challenge_method=S256`; a troca no token endpoint usa `grant_type=authorization_code`, o mesmo `redirect_uri`, o `code` recebido e seu `code_verifier`, sem client secret (cliente público); não criar usuário, mudar role ou usar conta privilegiada para simular perfil; (4) manter tokens somente em memória e conferir localmente no **access token** `iss`, `aud`, `exp` futuro e `realm_access.roles`, sem imprimir/salvar token, código, verifier, cookie ou segredo; confirmar issuer e audience `erp-core-api`, e enviar esse access token (nunca ID token) à API, cuja validação criptográfica permanece ativa; (5) sem registrar headers, chamar `GET /api/v1/platform/me` e `GET /api/v1/products`; esperar 200 para ADMIN/MANAGER/SALES/STOCK_OPERATOR e 403 para FINANCE sem role de leitura; repetir a leitura de catálogo sem bearer e esperar 401. Registrar apenas status HTTP e nomes de claims/roles. Se não houver contas locais com esses perfis, manter os casos correspondentes pendentes.
+
+### Pendências e próxima tarefa
+
+- Pendente: executar o fluxo real com conta SALES ou STOCK_OPERATOR existente e obter 200 em `/me` e `/products`; obter 403 com conta FINANCE existente, caso disponível; e confirmar 401 em chamada HTTP sem bearer na API iniciada. Não há credenciais no export e nenhuma conta foi criada.
+- Pendente: decisão funcional aprovada sobre reativação. Até lá, atualização não pode alterar `active` e não deve ser criada operação de reativação.
+- A interface Angular de catálogo deve aguardar a validação real do access token/roles e a escolha da integração OIDC do frontend. A leitura automatizada do contrato agora é parte do `verify`.

@@ -58,6 +58,9 @@ class CatalogIntegrationTest {
         mockMvc.perform(delete("/api/v1/categories/{id}", id).with(csrf())).andExpect(status().isNoContent());
         mockMvc.perform(get("/api/v1/categories/{id}", id)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
+        mockMvc.perform(put("/api/v1/categories/{id}", id).with(csrf()).contentType("application/json")
+                        .content("{\"name\":\"Tools updated\",\"description\":null,\"active\":true}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.active").value(false));
     }
 
     @Test
@@ -97,6 +100,11 @@ class CatalogIntegrationTest {
         mockMvc.perform(delete("/api/v1/products/{id}", id).with(csrf())).andExpect(status().isNoContent());
         mockMvc.perform(get("/api/v1/products/{id}", id)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
+        String updateAfterDeactivation = productBody("AB-12", "Widget changed after deactivation", categoryId, "14.00")
+                .replace("}", ",\"active\":true}");
+        mockMvc.perform(put("/api/v1/products/{id}", id).with(csrf()).contentType("application/json")
+                        .content(updateAfterDeactivation))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.active").value(false));
     }
 
     @Test

@@ -30,10 +30,12 @@ ADMIN representa administração técnica do ERP, não autorização para ignora
 
 No catálogo, categorias seguem as mesmas permissões de leitura e escrita dos produtos. As rotas de leitura exigem ROLE_ADMIN, ROLE_MANAGER, ROLE_SALES ou ROLE_STOCK_OPERATOR; operações de escrita exigem ROLE_ADMIN ou ROLE_MANAGER. FINANCE não recebe acesso ao catálogo. Essa política aplica-se na API com @PreAuthorize; ocultar ações na interface não substitui a autorização do servidor.
 
+Categoria e produto são desativados logicamente e mantêm seu histórico. Os DTOs de atualização não incluem `active`, e as operações de atualização preservam o estado atual. Não há operação explícita de reativação; a política funcional para reativar registros desativados permanece pendente de decisão. Até essa decisão, não se deve inferir reativação a partir de atualizações comuns.
+
 ## Superfície pública e ambiente local
 
 - Só `/actuator/health` e seus sub-recursos de health são públicos. Endpoints `/api/**` exigem bearer token; demais caminhos são negados por padrão.
-- Actuator expõe somente health e info; detalhes do health não são públicos.
+- Actuator expõe somente health e info; detalhes do health não são públicos. `/actuator/info` permanece inacessível, resultando em 401 sem token e 403 para principal autenticado por causa do deny-by-default.
 - CORS no backend restringe a origem local `http://localhost:4200` e não permite credenciais de browser.
 - Compose publica PostgreSQL e Keycloak somente em loopback. O realm importado restringe redirect URI e web origin ao frontend local, desativa cadastro público e não contém usuários ou senhas.
 - Credenciais bootstrap de desenvolvimento são apenas placeholders locais via `.env.example`; substituir por valores descartáveis em `.env` não versionado. Nunca reutilizar em ambiente compartilhado. Logs não devem imprimir tokens, senhas ou secrets.

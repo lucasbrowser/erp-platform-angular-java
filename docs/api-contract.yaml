@@ -19,10 +19,20 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [status]
                 properties:
                   status:
                     type: string
                     example: UP
+  /actuator/info:
+    get:
+      summary: Informações do Actuator não disponíveis a clientes
+      description: O Actuator expõe esta rota, mas a política deny-by-default rejeita acesso anônimo e autenticado.
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/platform/me:
     get:
       summary: Identidade do principal autenticado
@@ -322,25 +332,26 @@ components:
         type: array
         items:
           type: string
+        default: [name,asc]
       style: form
       explode: true
   schemas:
     CategoryRequest:
       type: object
-      additionalProperties: false
       required: [name]
       properties:
         name:
           type: string
           minLength: 1
           maxLength: 120
+          pattern: '\S'
         description:
           type: [string, 'null']
           maxLength: 2000
     Category:
       type: object
       additionalProperties: false
-      required: [id, name, active, createdAt, updatedAt]
+      required: [id, name, description, active, createdAt, updatedAt]
       properties:
         id:
           type: string
@@ -361,18 +372,19 @@ components:
           format: date-time
     ProductRequest:
       type: object
-      additionalProperties: false
       required: [sku, name, categoryId, price]
       properties:
         sku:
           type: string
           minLength: 1
           maxLength: 64
+          pattern: '\S'
           description: Normalizado como trim e maiúsculas.
         name:
           type: string
           minLength: 1
           maxLength: 160
+          pattern: '\S'
         description:
           type: [string, 'null']
           maxLength: 2000
@@ -382,19 +394,22 @@ components:
         price:
           type: number
           minimum: 0
+          maximum: 999999999999.99
           multipleOf: 0.01
     Product:
       type: object
       additionalProperties: false
-      required: [id, sku, name, categoryId, price, active, createdAt, updatedAt]
+      required: [id, sku, name, description, categoryId, price, active, createdAt, updatedAt]
       properties:
         id:
           type: string
           format: uuid
         sku:
           type: string
+          maxLength: 64
         name:
           type: string
+          maxLength: 160
         description:
           type: [string, 'null']
         categoryId:
@@ -402,6 +417,8 @@ components:
           format: uuid
         price:
           type: number
+          minimum: 0
+          maximum: 999999999999.99
           multipleOf: 0.01
         active:
           type: boolean
@@ -455,6 +472,7 @@ components:
           type: boolean
     Problem:
       type: object
+      required: [type, title, status, detail]
       properties:
         type:
           type: string

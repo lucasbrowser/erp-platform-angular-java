@@ -25,6 +25,15 @@ Na Fase 1, permissões por operação ficaram pendentes de validação de negóc
 - [ ] Conferir settings efetivos do client/mapper importados e validar access token real emitido pelo realm.
 - [ ] Especificar e implementar papéis por operação nos módulos futuros após aprovação de stakeholders.
 
+## Etapa 3.1.1 — estabilização do catálogo
+
+- [x] Validar `api-contract.yaml` semanticamente como OpenAPI 3.1 e fixar essa validação na suíte Maven.
+- [x] Conferir operações, filtros, paginação, segurança, schemas e respostas do contrato contra controllers e DTOs.
+- [x] Documentar que atualizações não alteram `active` e que reativação requer decisão funcional explícita.
+- [x] Registrar procedimento reproduzível de smoke OIDC usando somente contas locais legítimas existentes.
+- [ ] Executar Authorization Code + PKCE com conta SALES/STOCK_OPERATOR existente e validar `/me` e leitura de catálogo com access token real.
+- [ ] Executar leitura negada (403) com conta existente sem role de catálogo, se disponível; não criar contas ou alterar atribuições para este smoke.
+
 Na conclusão da Fase 1, não iniciar módulos funcionais. A autorização posterior da Etapa 3.1 iniciou somente o catálogo backend.
 
 ## Etapa 3.1 — backend do catálogo

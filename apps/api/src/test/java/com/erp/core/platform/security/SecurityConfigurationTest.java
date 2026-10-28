@@ -70,6 +70,14 @@ class SecurityConfigurationTest {
     }
 
     @Test
+    void actuatorInfoRemainsDeniedByDefault() throws Exception {
+        mockMvc.perform(get("/actuator/info")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/actuator/info")
+                        .header("Authorization", "Bearer " + bearer("SALES", ISSUER, "erp-core-api")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void protectedEndpointWithoutTokenReturns401() throws Exception {
         mockMvc.perform(get("/api/v1/security/manager")).andExpect(status().isUnauthorized());
     }
