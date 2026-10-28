@@ -32,6 +32,34 @@
 - Conferir a configuração efetiva do cliente importado no Admin Console após o primeiro import e atribuir roles a usuários de desenvolvimento fora do arquivo versionado, sem incluir senhas no Git.
 - Refinar a matriz de permissões com stakeholders antes de implementar endpoints de negócio. Não implementar módulos funcionais como parte desta fase.
 
+## Validação OIDC ponta a ponta — tentativa de 2026-10-28
+
+### Configuração ativa verificada sem credenciais
+
+- `git status --short` e `git diff --stat`: árvore limpa no início desta tentativa; nenhum arquivo versionado foi alterado antes da inspeção.
+- Realm exportado: `erp-core`; cliente web público `erp-core-web`; redirect `http://localhost:4200/*`; web origin `http://localhost:4200`; PKCE S256; flows implícitos, direct grants e service accounts desativados. O mapper `oidc-audience-mapper` configura `erp-core-api` em access tokens e desliga a claim de ID token. O realm declara os cinco perfis iniciais.
+- A configuração foi importada no Keycloak 26.7.3 segundo o log registrado na Fase 1.2. Discovery atual respondeu com issuer `http://localhost:8081/realms/erp-core`, endpoint de autorização/token e JWKS esperado; o JWKS respondeu com duas chaves.
+- Pedido ao endpoint de autorização com `client_id=erp-core-web`, redirect local e PKCE S256 chegou à página de autenticação (HTTP 200). O mesmo pedido sem parâmetros PKCE redirecionou à callback com erro OAuth; redirect URI fora do host permitido foi rejeitado (HTTP 400).
+- POST inválido ao token endpoint com origem `http://localhost:4200` respondeu HTTP 400 e incluiu apenas essa origem em `Access-Control-Allow-Origin`; com `http://localhost:4201`, respondeu HTTP 403 sem permitir CORS. Nenhum código ou token foi usado nesses pedidos.
+- API atual iniciada na porta 8082; `GET /api/v1/example` sem autenticação respondeu HTTP 401. O JAR foi encerrado após o teste.
+
+### Limites desta tentativa
+
+- O controle de navegador CUA falhou ao inicializar (kernel encerrou antes de disponibilizar navegador). Nenhuma conta de teste foi provisionada nesta tentativa, e nenhum Authorization Code foi trocado por token.
+- Sem login interativo, não foi inspecionado nenhum access token real: a audience `erp-core-api`, `realm_access.roles` e a distinção access token/ID token ainda não foram confirmadas em emissão efetiva. Também não foi feita chamada autenticada à API.
+- A API não tem atualmente uma rota operacional com autorização por role: `/api/**` exige autenticação, mas não existe endpoint funcional com `@PreAuthorize`. Por isso não há como observar 403 com um usuário real sem adicionar um endpoint de diagnóstico/negócio, o que ficou fora do escopo. Os testes automatizados anteriores comprovam 403 com JWT de teste no endpoint de teste da suíte.
+- Não foram usados implicit flow, direct access grants, senha de usuário ou credenciais administrativas pela API nesta tentativa. Nenhum token, código ou segredo foi registrado.
+
+### Procedimento manual seguro para concluir
+
+1. Com Keycloak local ativo, entrar no Admin Console usando a credencial local configurada fora do Git; criar um usuário descartável de desenvolvimento e atribuir somente a role `SALES`. Não reutilizar conta privilegiada nem registrar a senha.
+2. Usar um cliente OIDC local compatível com Authorization Code + PKCE S256, client ID `erp-core-web` e callback `http://localhost:4200/oidc-callback` (permitida pelo redirect local). Não usar implicit/direct grant nem ferramentas externas para decodificar tokens.
+3. Deixar o cliente trocar o código usando seu `code_verifier`. Inspecionar localmente, sem imprimir token: `iss`, `exp`, `aud`, `realm_access.roles` e o campo `token_type`/tipo do resultado. Confirmar issuer esperado, audience `erp-core-api`, role `SALES` e enviar somente o **access token** à API (nunca o ID token).
+4. Chamar `GET http://localhost:8082/api/v1/example` com `Authorization: Bearer <access_token>` em cliente local que não registre headers. Um resultado diferente de 401 comprova autenticação; atualmente a rota inexistente retorna 404 depois da autenticação.
+5. Para observar 403 real, repetir contra uma futura operação com autorização de role definida (ou fixture de integração local equivalente) e token de usuário sem essa role. Não introduzir endpoint permanente apenas para o smoke.
+
+Até cumprir esses passos, a validação OIDC ponta a ponta continua **pendente**; a configuração declarativa e os endpoints públicos do provedor foram verificados, mas não se afirma integração autenticada real.
+
 ## Ambiente inspecionado em 2026-10-28
 
 - Windows 10, PowerShell.
