@@ -1,5 +1,12 @@
 # Validação da fundação
 
+## URL de API do frontend local (2026-10-29)
+
+- Causa raiz: `environment.ts` definia `apiBaseUrl` como `http://localhost:8080/api`, enquanto a API desta execução está na porta 8082. `IdentityApiService` concatena `/v1/platform/me`, produzindo a URL observada em `localhost:8080/api/v1/platform/me`. O interceptor consulta a mesma configuração para restringir o envio do bearer; não há segunda URL que a sobrescreva. `angular.json` só troca `environment.ts` pelo arquivo de produção no build production.
+- A base de desenvolvimento foi ajustada para `http://localhost:8082/api`; o sufixo `/v1` continua no serviço, preservando `GET /api/v1/platform/me`. A configuração de produção (`apiBaseUrl: ""`) não foi alterada. Os testes do serviço e do interceptor foram alinhados à URL efetiva, mantendo a cobertura de envio seguro do bearer.
+- Validação executada em `apps/web` com Node 26.12.0 e npm 11.19.1: `npm run lint` passou; `npm test -- --watch=false` passou (4 arquivos, 9 testes); `npm run build` passou. Os testes de `IdentityApiService` confirmam a requisição para `http://localhost:8082/api/v1/platform/me`; os testes do interceptor confirmam que o bearer continua restrito à origem/caminho configurados. O build padrão é production e mantém `apiBaseUrl` vazio por substituição de ambiente; não alterei esse comportamento. `git diff --check` também passou, com apenas avisos Git de conversão LF/CRLF.
+- Limitação do ambiente: Node 26.12.0 está fora do intervalo do `package.json` (`>=22.22.3 <23`). Os comandos passaram com a versão disponível, mas repetir lint, testes e build em Node 22.22.3 permanece recomendado para validação no runtime suportado. Não foi feita chamada autenticada real ao backend nesta tarefa; a evidência desta alteração é a URL configurada e coberta pelos testes frontend.
+
 ## CORS da API para o frontend em loopback (2026-10-29)
 
 - A configuração efetiva estava em `SecurityConfiguration.corsConfigurationSource()`, habilitada na cadeia Spring Security por `.cors(withDefaults())`. Ela é aplicada antes da autorização bearer, portanto preflight `OPTIONS` não exige token. Não há um `WebMvcConfigurer` nem configuração CORS independente no Spring MVC; a origem de configuração CORS da API é o bean compartilhado com a cadeia de filtros.

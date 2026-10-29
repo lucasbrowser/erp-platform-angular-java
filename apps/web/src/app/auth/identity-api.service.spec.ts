@@ -42,7 +42,7 @@ describe("IdentityApiService", () => {
     api.load();
     await vi.waitFor(() => expect(updateToken).toHaveBeenCalledOnce());
     const request = backend.expectOne(
-      "http://localhost:8080/api/v1/platform/me",
+      "http://localhost:8082/api/v1/platform/me",
     );
     expect(request.request.headers.get("Authorization")).toBe(
       "Bearer mock-token",
@@ -59,14 +59,14 @@ describe("IdentityApiService", () => {
     api.load();
     await vi.waitFor(() => expect(updateToken).toHaveBeenCalledOnce());
     backend
-      .expectOne("http://localhost:8080/api/v1/platform/me")
+      .expectOne("http://localhost:8082/api/v1/platform/me")
       .flush({}, { status: 403, statusText: "Forbidden" });
     await vi.waitFor(() => expect(api.state()).toBe("forbidden"));
     updateToken.mockClear();
     api.load();
     await vi.waitFor(() => expect(updateToken).toHaveBeenCalledOnce());
     backend
-      .expectOne("http://localhost:8080/api/v1/platform/me")
+      .expectOne("http://localhost:8082/api/v1/platform/me")
       .flush({}, { status: 401, statusText: "Unauthorized" });
     await vi.waitFor(() => expect(api.state()).toBe("unauthenticated"));
   });

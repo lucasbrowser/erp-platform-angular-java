@@ -44,11 +44,11 @@ describe("apiTokenInterceptor", () => {
 
   it("adds a refreshed bearer only to the configured API origin and path", async () => {
     const request = firstValueFrom(
-      http.get("http://localhost:8080/api/v1/platform/me"),
+      http.get("http://localhost:8082/api/v1/platform/me"),
     );
     await vi.waitFor(() => expect(updateToken).toHaveBeenCalledOnce());
     const pending = backend.expectOne(
-      "http://localhost:8080/api/v1/platform/me",
+      "http://localhost:8082/api/v1/platform/me",
     );
     expect(pending.request.headers.get("Authorization")).toBe(
       "Bearer test-access-token",
@@ -71,10 +71,10 @@ describe("apiTokenInterceptor", () => {
   it("does not attach a token to the API when the session is anonymous", async () => {
     (client as unknown as { authenticated: boolean }).authenticated = false;
     const request = firstValueFrom(
-      http.get("http://localhost:8080/api/v1/platform/me"),
+      http.get("http://localhost:8082/api/v1/platform/me"),
     );
     const pending = backend.expectOne(
-      "http://localhost:8080/api/v1/platform/me",
+      "http://localhost:8082/api/v1/platform/me",
     );
     expect(pending.request.headers.has("Authorization")).toBe(false);
     pending.flush({});
