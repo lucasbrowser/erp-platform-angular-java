@@ -30,7 +30,12 @@ describe("AuthService", () => {
   it("initializes the OIDC adapter with silent SSO and PKCE S256", async () => {
     await auth.initialize();
     expect(client.init).toHaveBeenCalledWith(
-      expect.objectContaining({ onLoad: "check-sso", pkceMethod: "S256" }),
+      expect.objectContaining({
+        onLoad: "check-sso",
+        pkceMethod: "S256",
+        responseMode: "query",
+        silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
+      }),
     );
     expect(auth.status()).toBe("authenticated");
   });
