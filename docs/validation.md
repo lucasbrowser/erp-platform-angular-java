@@ -1,5 +1,14 @@
 # Validação da fundação
 
+## Estabilização de dependências Angular (2026-10-29)
+
+- Baseline do lock: Angular runtime/compiler 22.0.0, CLI/build/compiler-cli 22.0.0, Vitest 4.0.15, TypeScript 6.0.3, `keycloak-js` 26.2.5. Node 26.12.0 estava fora de `engines`; validação feita com Node 22.22.3 e npm 11.6.2.
+- `npm audit` inicial confirmou 18 itens: 2 low, 4 moderate, 10 high e 2 critical. Cinco pacotes Angular declarados em `dependencies` foram afetados: common, compiler, core, platform-browser e router; o compiler é necessário pelo toolchain Angular/CLI e foi mantido. Os demais 13 itens estavam em dependências de desenvolvimento (Angular CLI/build/compiler-cli, Vitest e transitivas).
+- Atualizados juntos os pacotes Angular de runtime/compiler para 22.2.3; `@angular/compiler-cli` também para 22.2.3, compatível com o peer exato `@angular/compiler` 22.2.3; CLI e build foram para 22.2.5. O `@angular/build` declara suporte a TypeScript `>=6.0 <6.1`, mantendo TypeScript 6.0.3. Vitest foi atualizado de 4.0.15 para 4.1.12, compatível com Vite 8 e Vitest >=4.0.8 aceito pelo builder.
+- Correções confirmadas no audit: os avisos Angular foram eliminados pelo conjunto compatível 22.2.x; `@babel/core` foi para 8.0.5, esbuild para 0.28.2, piscina para 5.3.2, Vite para 8.3.5, Zod para 4.6.6 e `@vitest/mocker` para 4.1.12. As antigas entradas vulneráveis de `@hono/node-server`, MCP SDK e pacote `pacote` deixaram de integrar a árvore resolvida do CLI. A versão de `keycloak-js` e seus fluxos OIDC foram preservados.
+- Lockfile regenerado pelo npm 11.6.2 a partir do manifest atualizado, sem `npm audit fix --force`. `npm ci` foi concluído no `apps/web` do workspace com 390 pacotes instalados e 0 vulnerabilidades. `npm run lint`, `npm test -- --watch=false` (4 arquivos, 9 testes), `npm run build` e `npm audit` também passaram diretamente no workspace; o audit explícito reportou 0 vulnerabilidades. A primeira tentativa de instalação falhou porque Node não estava no PATH; a repetição usou Node 22.22.3 no PATH e completou.
+- Resultado é do audit atual do registro npm e da árvore validada nesta data; não afirma ausência futura de advisories. A distinção prod/dev descreve a classificação do npm (`dependencies` versus `devDependencies`); pacotes de build/dev continuam presentes na instalação de desenvolvimento.
+
 ## Etapa 3.2.1 — integração Angular com Keycloak OIDC (2026-10-28)
 
 - Configurada a SPA com o adaptador oficial `keycloak-js` 26.2.5 e o cliente público `erp-core-web` do realm `erp-core`; não há client secret. A iniciação usa `check-sso`, Authorization Code (padrão do adaptador), PKCE S256 e callback `/auth/callback`. O arquivo silencioso em `apps/web/public/silent-check-sso.html` dá suporte ao `check-sso` em iframe.
