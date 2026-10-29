@@ -9,7 +9,9 @@ import { AuthService } from "../auth/auth.service";
     @if (auth.status() === "loading") {
       <p role="status">Verificando sessão…</p>
     } @else if (auth.status() === "error") {
-      <p role="alert">Não foi possível inicializar a conexão com o provedor de identidade.</p>
+      <p role="alert">
+        Não foi possível inicializar a conexão com o provedor de identidade.
+      </p>
     } @else if (auth.status() === "authenticated") {
       <p>Sessão autenticada.</p>
       <a routerLink="/home">Abrir início</a>

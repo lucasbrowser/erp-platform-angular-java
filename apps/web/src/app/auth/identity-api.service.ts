@@ -7,7 +7,12 @@ export interface CurrentIdentity {
   authorities: string[];
 }
 
-export type IdentityLoadState = "loading" | "loaded" | "unauthenticated" | "forbidden" | "error";
+export type IdentityLoadState =
+  | "loading"
+  | "loaded"
+  | "unauthenticated"
+  | "forbidden"
+  | "error";
 
 @Injectable({ providedIn: "root" })
 export class IdentityApiService {
@@ -27,7 +32,13 @@ export class IdentityApiService {
         error: (error: unknown) => {
           this.identity.set(null);
           const status = error instanceof HttpErrorResponse ? error.status : 0;
-          this.state.set(status === 401 ? "unauthenticated" : status === 403 ? "forbidden" : "error");
+          this.state.set(
+            status === 401
+              ? "unauthenticated"
+              : status === 403
+                ? "forbidden"
+                : "error",
+          );
         },
       });
   }

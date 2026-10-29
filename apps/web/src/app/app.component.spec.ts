@@ -6,7 +6,9 @@ describe("AppComponent", () => {
   it("renders the technical foundation landing page", async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
-      providers: [{ provide: AuthService, useValue: { status: () => "anonymous" } }],
+      providers: [
+        { provide: AuthService, useValue: { status: () => "anonymous" } },
+      ],
     }).compileComponents();
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();

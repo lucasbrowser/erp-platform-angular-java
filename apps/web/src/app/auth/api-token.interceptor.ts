@@ -12,7 +12,8 @@ function isApiRequest(requestUrl: string): boolean {
     const apiPath = api.pathname.replace(/\/$/, "");
     return (
       request.origin === api.origin &&
-      (request.pathname === apiPath || request.pathname.startsWith(`${apiPath}/`))
+      (request.pathname === apiPath ||
+        request.pathname.startsWith(`${apiPath}/`))
     );
   } catch {
     return false;
@@ -27,7 +28,11 @@ export const apiTokenInterceptor: HttpInterceptorFn = (request, next) => {
   return from(auth.client.updateToken(30)).pipe(
     switchMap(() => {
       const token = auth.client.token;
-      return next(token ? request.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : request);
+      return next(
+        token
+          ? request.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
+          : request,
+      );
     }),
   );
 };

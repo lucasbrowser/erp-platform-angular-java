@@ -7,7 +7,10 @@ import { AuthService } from "./auth/auth.service";
   imports: [RouterOutlet],
   template: `
     <main>
-      <header><h1>ERP Core</h1><span aria-live="polite">{{ auth.status() }}</span></header>
+      <header>
+        <h1>ERP Core</h1>
+        <span aria-live="polite">{{ auth.status() }}</span>
+      </header>
       <router-outlet />
     </main>
   `,
@@ -23,7 +26,11 @@ import { AuthService } from "./auth/auth.service";
         max-width: 48rem;
         padding: 0 1.5rem;
       }
-      header { display: flex; align-items: baseline; justify-content: space-between; }
+      header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+      }
     `,
   ],
 })

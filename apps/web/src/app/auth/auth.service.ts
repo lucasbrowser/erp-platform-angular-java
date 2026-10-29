@@ -13,17 +13,21 @@ export class AuthService {
   constructor(readonly client: Keycloak) {}
 
   get roles(): string[] {
-    const claims = this.client.tokenParsed as Record<string, unknown> | undefined;
-    const roles = claims?.["realm_access"] as
-      | { roles?: unknown }
+    const claims = this.client.tokenParsed as
+      | Record<string, unknown>
       | undefined;
+    const roles = claims?.["realm_access"] as { roles?: unknown } | undefined;
     return Array.isArray(roles?.roles)
       ? roles.roles.filter((role): role is string => typeof role === "string")
       : [];
   }
 
   async initialize(): Promise<void> {
-    if (!environment.keycloak.url || !environment.keycloak.realm || !environment.keycloak.clientId) {
+    if (
+      !environment.keycloak.url ||
+      !environment.keycloak.realm ||
+      !environment.keycloak.clientId
+    ) {
       this.status.set("error");
       return;
     }

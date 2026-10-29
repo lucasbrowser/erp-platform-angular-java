@@ -13,7 +13,9 @@ export class AuthCallbackComponent {
     if (auth.status() === "authenticated") {
       void router.navigateByUrl(auth.takeReturnPath(), { replaceUrl: true });
     } else {
-      void router.navigateByUrl("/access-denied?reason=authentication", { replaceUrl: true });
+      void router.navigateByUrl("/access-denied?reason=authentication", {
+        replaceUrl: true,
+      });
     }
   }
 }

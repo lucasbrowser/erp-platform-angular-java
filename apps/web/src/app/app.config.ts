@@ -1,4 +1,8 @@
-import { ApplicationConfig, inject, provideAppInitializer } from "@angular/core";
+import {
+  ApplicationConfig,
+  inject,
+  provideAppInitializer,
+} from "@angular/core";
 import { provideHttpClient, withInterceptors } from "@angular/common/http";
 import { provideRouter } from "@angular/router";
 import Keycloak from "keycloak-js";

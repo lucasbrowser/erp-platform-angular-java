@@ -13,14 +13,25 @@ import { IdentityApiService } from "../auth/identity-api.service";
     } @else if (identity.state() === "loaded") {
       <p>Sessão autenticada no ERP Core.</p>
       <p>Identificador: {{ identity.identity()?.userId }}</p>
-      <p>Authorities aceitas pela API: {{ identity.identity()?.authorities?.join(", ") || "nenhuma" }}</p>
+      <p>
+        Authorities aceitas pela API:
+        {{ identity.identity()?.authorities?.join(", ") || "nenhuma" }}
+      </p>
     } @else if (identity.state() === "unauthenticated") {
-      <p role="alert">A API não reconheceu a sessão. Entre novamente para renovar o acesso.</p>
-      <button type="button" (click)="auth.login('/home')">Entrar novamente</button>
+      <p role="alert">
+        A API não reconheceu a sessão. Entre novamente para renovar o acesso.
+      </p>
+      <button type="button" (click)="auth.login('/home')">
+        Entrar novamente
+      </button>
     } @else if (identity.state() === "forbidden") {
-      <p role="alert">Sua conta não tem permissão para consultar a identidade atual.</p>
+      <p role="alert">
+        Sua conta não tem permissão para consultar a identidade atual.
+      </p>
     } @else {
-      <p role="alert">Não foi possível consultar a API. Tente novamente mais tarde.</p>
+      <p role="alert">
+        Não foi possível consultar a API. Tente novamente mais tarde.
+      </p>
     }
     <button type="button" (click)="auth.logout()">Sair</button>
     <p><a routerLink="/">Voltar</a></p>
