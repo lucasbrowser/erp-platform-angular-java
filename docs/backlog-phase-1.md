@@ -46,3 +46,11 @@ Na conclusão da Fase 1, não iniciar módulos funcionais. A autorização poste
 - [ ] Revisar política de reativação de cadastros com stakeholders antes de criar endpoints de ativação.
 
 Produtos, estoque, vendas e financeiro permanecem fora desta etapa.
+
+## Etapa 3.2.1 — integração Angular com Keycloak
+
+- [x] Configurar adapter oficial OIDC, PKCE S256, sessão e rotas protegidas sem tokens persistidos.
+- [x] Restringir o interceptor bearer à origem e caminho da API; manter endpoint de autenticação sem login automático em 401.
+- [x] Registrar fluxo manual local e estado de validação real.
+- [ ] Executar lint, testes e build Angular em Node 22.22.3/npm 11.6.2; o runtime não estava disponível no ambiente desta execução.
+- [ ] Autenticar usuário legítimo existente no navegador e chamar API com access token real; discovery local sozinha não comprova login nem audience.

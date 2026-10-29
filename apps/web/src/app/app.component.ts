@@ -1,13 +1,13 @@
-import { Component } from "@angular/core";
+import { Component, inject } from "@angular/core";
 import { RouterOutlet } from "@angular/router";
+import { AuthService } from "./auth/auth.service";
 
 @Component({
   selector: "erp-root",
   imports: [RouterOutlet],
   template: `
     <main>
-      <h1>ERP Core</h1>
-      <p>Fundação técnica pronta para os módulos aprovados do produto.</p>
+      <header><h1>ERP Core</h1><span aria-live="polite">{{ auth.status() }}</span></header>
       <router-outlet />
     </main>
   `,
@@ -23,7 +23,10 @@ import { RouterOutlet } from "@angular/router";
         max-width: 48rem;
         padding: 0 1.5rem;
       }
+      header { display: flex; align-items: baseline; justify-content: space-between; }
     `,
   ],
 })
-export class AppComponent {}
+export class AppComponent {
+  readonly auth = inject(AuthService);
+}

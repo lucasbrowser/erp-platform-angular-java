@@ -1,5 +1,22 @@
 # Validação da fundação
 
+## Etapa 3.2.1 — integração Angular com Keycloak OIDC (2026-10-28)
+
+- Configurada a SPA com o adaptador oficial `keycloak-js` 26.2.5 e o cliente público `erp-core-web` do realm `erp-core`; não há client secret. A iniciação usa `check-sso`, Authorization Code (padrão do adaptador), PKCE S256 e callback `/auth/callback`. O arquivo silencioso em `apps/web/public/silent-check-sso.html` dá suporte ao `check-sso` em iframe.
+- Ambiente de desenvolvimento aponta para Keycloak `http://localhost:8081` e API `http://localhost:8080/api`. O build production substitui o arquivo de ambiente por valores vazios para não embutir URLs locais; valores do deployment precisam ser fornecidos antes de publicar.
+- Rotas `/home` protegida, callback, início e acesso indisponível foram criadas. Return path permite apenas caminho interno da mesma origem. Logout usa o adapter. A tela inicial autenticada consulta `/api/v1/platform/me` e mostra os authorities calculados pela API, sem usar claims de token como autorização no cliente.
+- Interceptor envia bearer somente a requisições na origem e caminho base da API configurada, e executa `updateToken(30)` antes da requisição. Não inclui token na discovery, endpoints do Keycloak ou outros hosts. Erros HTTP são propagados sem redirecionamento automático; telas consumidoras devem distinguir 401 e 403.
+- Testes adicionados para o shell Angular, configuração OIDC com mock, carregamento do endpoint `/me`, resposta 401/403 e interceptor (API versus host do Keycloak). Eles usam mocks e não comprovam autenticação real nem claims emitidas. Não foi possível executar lint, testes ou build: `node` e `npm` não estão disponíveis no PATH; `node_modules` existente não inclui `keycloak-js`. O comando Compose de validação de configuração terminou com código 0, embora o Docker CLI tenha emitido avisos de acesso negado ao config local. Portanto instalação do lock, compilação e testes ficam pendentes em ambiente Node 22.22.3/npm 11.6.2.
+- A discovery local respondeu em `http://localhost:8081/realms/erp-core/.well-known/openid-configuration` com issuer `http://localhost:8081/realms/erp-core` e endpoints de autorização/token no mesmo realm. Isso só confirma reachability/discovery; não houve login com usuário legítimo nem chamada autenticada à API nesta tarefa.
+
+### Validação manual OIDC do frontend
+
+1. Inicie os serviços locais (`docker compose -f infra/compose.yaml up -d`) e a API conforme a seção de execução do README. Execute `cd apps/web; npm ci; npm start` em Node 22.22.3/npm 11.6.2.
+2. Acesse `http://localhost:4200`, clique em Entrar e autentique uma conta de desenvolvimento legítima já provisionada no realm. O cliente é `erp-core-web`; callback local `/auth/callback`; o adapter envia PKCE S256 e troca o código pelo access token. Não copie o token para logs, arquivos ou chamados.
+3. Para inspecionar claims sem imprimir o segredo: na sessão do navegador, use uma ferramenta local que decodifique em memória somente o payload do access token e exiba apenas `iss`, `aud`, `exp` e nomes em `realm_access.roles`; nunca cole o JWT em sites ou console compartilhado. Confirme issuer do realm e `erp-core-api` em `aud`; não use ID token para API.
+4. Navegue para `/home`; a própria tela chama `/api/v1/platform/me` e mostra o `userId` e authorities retornados. Na aba Network, confirme status 200 sem copiar nem exportar o header `Authorization`. Um 401 indica sessão ausente/expirada e não inicia um ciclo automático de login; 403 indica falta de permissão.
+5. Ainda pendente: teste de login real no browser e requisição API autenticada com access token real. A conta disponível não foi verificada e não foi criada ou alterada nenhuma conta.
+
 ## Etapa 3.1 — catálogo backend (2026-10-28)
 
 ### Escopo e decisões

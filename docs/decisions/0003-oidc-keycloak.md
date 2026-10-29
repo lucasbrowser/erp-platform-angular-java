@@ -12,6 +12,9 @@ O ERP precisa centralizar identidade sem armazenar senhas próprias. Clientes OI
 - Keycloak 26.7.3 é o provedor OIDC e Spring Security OAuth2 Resource Server protege a API.
 - A API usa discovery/JWKS do issuer configurado e valida assinatura, issuer, `exp`/`nbf` e audiência `erp-core-api`. O token aceito é access token; ID token não autentica chamadas à API.
 - O browser usa client público `erp-core-web`, Authorization Code + PKCE S256. Implicit Flow, password/direct grants e service accounts não são necessários e ficam desativados.
+- A SPA integra o adaptador oficial `keycloak-js` 26.2.5 diretamente. Não foi adicionada uma camada Angular específica de Keycloak; o SDK oficial já oferece o fluxo OIDC, PKCE, refresh e callbacks, com menos dependências.
+- A aplicação inicializa com `check-sso`; o login explícito redireciona a `/auth/callback`. Tokens ficam em memória; só a rota interna de retorno é mantida temporariamente em `sessionStorage`. A API recebe access token apenas por interceptor com correspondência exata de origem e limite de caminho da URL configurada.
+- As URLs locais ficam no ambiente de desenvolvimento. A configuração do build production não contém host local e exige valores do ambiente de implantação.
 - `erp-core-api` é uma audiência/resource server bearer-only, sem segredo. Mapper do cliente web adiciona essa audiência ao access token, nunca ao ID token.
 - Roles do realm ADMIN, MANAGER, SALES, STOCK_OPERATOR e FINANCE viram authorities `ROLE_*`; roles desconhecidas são ignoradas. A API nega por padrão. `/actuator/health` é a única rota pública; permissões por operação devem ser impostas no servidor.
 - `infra/keycloak/erp-core-realm.json` é importado no primeiro boot local. O import do Keycloak não altera realm preexistente; atualizações subsequentes serão aplicadas por script idempotente via Admin REST/kcadm ou por procedimento controlado para o ambiente alvo.
@@ -19,6 +22,8 @@ O ERP precisa centralizar identidade sem armazenar senhas próprias. Clientes OI
 ## Consequências
 
 Nenhuma senha de usuário é guardada pelo ERP e a API não confia em token apenas por sua validade criptográfica: issuer e audiência também são obrigatórios. A gestão de perfis deve respeitar a matriz de menor privilégio documentada e ser aplicada endpoint/método por endpoint/método. A configuração local `start-dev`, redirect e hostname HTTP são exclusivos de desenvolvimento.
+
+O adapter JS é distribuído separadamente do servidor Keycloak e fica fixado em 26.2.5; o servidor permanece em 26.7.3. Alterações de versão devem ser verificadas contra o browser e o realm local antes de atualizar os pins.
 
 ## Validação e limites
 
