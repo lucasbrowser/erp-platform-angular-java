@@ -40,7 +40,7 @@ Categoria e produto são desativados logicamente e mantêm seu histórico. Os DT
 
 - Só `/actuator/health` e seus sub-recursos de health são públicos. Endpoints `/api/**` exigem bearer token; demais caminhos são negados por padrão.
 - Actuator expõe somente health e info; detalhes do health não são públicos. `/actuator/info` permanece inacessível, resultando em 401 sem token e 403 para principal autenticado por causa do deny-by-default.
-- CORS no backend restringe a origem local `http://localhost:4200` e não permite credenciais de browser.
+- CORS no backend restringe as origens locais `http://localhost:4200` e `http://127.0.0.1:4200`, permite os métodos de API usados pelo frontend e os headers `Authorization` e `Content-Type`; não permite credenciais de browser. Origins adicionais exigem inclusão explícita.
 - Compose publica PostgreSQL e Keycloak somente em loopback. O realm importado restringe redirect URI e web origin ao frontend local, desativa cadastro público e não contém usuários ou senhas.
 - Credenciais bootstrap de desenvolvimento são apenas placeholders locais via `.env.example`; substituir por valores descartáveis em `.env` não versionado. Nunca reutilizar em ambiente compartilhado. Logs não devem imprimir tokens, senhas ou secrets.
 

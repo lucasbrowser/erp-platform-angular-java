@@ -35,7 +35,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -67,6 +70,30 @@ class SecurityConfigurationTest {
     @Test
     void healthIsPublic() throws Exception {
         mockMvc.perform(get("/actuator/health")).andExpect(status().isOk());
+    }
+
+    @Test
+    void corsPreflightAllowsBothLocalFrontendOriginsAndAuthorizationHeader() throws Exception {
+        for (String origin : List.of("http://localhost:4200", "http://127.0.0.1:4200")) {
+            mockMvc.perform(options("/api/v1/platform/me")
+                            .header("Origin", origin)
+                            .header("Access-Control-Request-Method", "GET")
+                            .header("Access-Control-Request-Headers", "authorization,content-type"))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string("Access-Control-Allow-Origin", origin))
+                    .andExpect(header().string("Access-Control-Allow-Methods", org.hamcrest.Matchers.containsString("GET")))
+                    .andExpect(header().string("Access-Control-Allow-Headers", containsStringIgnoringCase("Authorization")));
+        }
+    }
+
+    @Test
+    void corsPreflightRejectsUnlistedOrigin() throws Exception {
+        mockMvc.perform(options("/api/v1/platform/me")
+                        .header("Origin", "http://127.0.0.1:4201")
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "authorization"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
     }
 
     @Test
