@@ -1,5 +1,31 @@
 # Validação da fundação
 
+## Gestão de categorias Angular (2026-10-30)
+
+### Implementação
+
+- Adicionadas as rotas autenticadas `/catalog/categories`, `/catalog/categories/new` e `/catalog/categories/:id/edit`. Guards consultam authorities de `/api/v1/platform/me`: ADMIN/MANAGER/SALES/STOCK_OPERATOR podem ler; apenas ADMIN/MANAGER podem escrever; FINANCE é negado. A API permanece responsável pela autorização efetiva.
+- Listagem usa `GET /api/v1/categories` com page zero-based, size 20 (abaixo do máximo 100), sort `name,asc`, indicadores de carregamento/erro/vazio, estado ativo/inativo e paginação pelo servidor. Não existem filtros de categoria no backend e nenhum foi adicionado.
+- Formulário reativo cria por POST e edita por GET UUID + PUT completo. Limites: nome obrigatório/não branco até 120; descrição opcional até 2000. Payload não envia `active`. Desativação pede confirmação, usa DELETE/204 e atualiza a listagem.
+- `@angular/forms` 22.2.3 foi adicionada como dependência runtime, alinhada ao Angular 22.2.3. `package-lock.json` foi atualizado pelo npm. Sem nova biblioteca visual e sem mudanças de backend.
+
+### Validação executada
+
+- Node reportado pelo npm: v26.12.0; npm 11.19.1. O Node está fora do intervalo declarado pelo projeto (`>=22.22.3 <23`), portanto os resultados abaixo são observados, mas devem ser repetidos em Node 22 compatível antes de merge.
+- `npm install @angular/forms@22.2.3 --save-exact`: concluído; uma dependência adicionada, `npm` informou zero vulnerabilidades. O npm avisou que quatro pacotes têm scripts de instalação não aprovados, sem executar esses scripts.
+- `npm run lint`: passou; ESLint e Prettier sem problemas após correções.
+- `npm test -- --watch=false`: passou; 9 arquivos, 28 testes aprovados.
+- `npm run build`: passou; bundle de produção gerado em `apps/web/dist/erp-core-web` (main 340.15 kB bruto, total inicial 340.66 kB bruto).
+- `npm ls @angular/forms --depth=0`: confirmou `@angular/forms@22.2.3`; `npm install --package-lock-only --ignore-scripts --offline --no-audit --no-fund`: `up to date`, lockfile consistente.
+- `git diff --check`: passou; apenas avisos do Git sobre conversão de LF/CRLF em arquivos de trabalho, sem erros de whitespace.
+
+### Limitações e próximos passos
+
+- Não foi executado smoke manual no navegador/Keycloak nesta tarefa. Validar com contas existentes ADMIN/MANAGER, SALES ou STOCK_OPERATOR e FINANCE, incluindo tentativas proibidas confirmadas pela API.
+- Perfis somente leitores veem a lista, mas ainda não existe página de consulta individual; o link de edição só é exibido para ADMIN/MANAGER.
+- O feedback de sucesso de criação/edição é levado à lista por state de navegação; decisões de UX adicionais ficam para revisão.
+- Repetir lint, testes e build com Node `>=22.22.3 <23` e conferir `npm ci` em ambiente compatível.
+
 ## URL de API do frontend local (2026-10-29)
 
 - Causa raiz: `environment.ts` definia `apiBaseUrl` como `http://localhost:8080/api`, enquanto a API desta execução está na porta 8082. `IdentityApiService` concatena `/v1/platform/me`, produzindo a URL observada em `localhost:8080/api/v1/platform/me`. O interceptor consulta a mesma configuração para restringir o envio do bearer; não há segunda URL que a sobrescreva. `angular.json` só troca `environment.ts` pelo arquivo de produção no build production.

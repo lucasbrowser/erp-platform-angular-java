@@ -1,12 +1,12 @@
 # SDD — Catálogo no Angular
 
-**Status:** serviços e modelos HTTP da primeira etapa implementados; páginas e formulários de catálogo continuam pendentes.
+**Status:** modelos e serviços HTTP concluídos; gestão de categorias implementada nesta etapa; interface de produtos permanece pendente.
 
 ## 1. Objetivo e contexto observado
 
-Especificar a futura interface de gestão de produtos e categorias, consumindo os endpoints de catálogo existentes da API Spring Boot. Esta entrega é somente documental e não autoriza mudanças em frontend, backend, banco ou permissões.
+Especificação técnica baseada no código auditado. A gestão de categorias foi implementada; as telas de produtos e a integração completa do catálogo continuam pendentes.
 
-O frontend usa componentes standalone, Angular Router, signals em serviços, `HttpClient` com interceptor funcional e autenticação por `keycloak-js`. Hoje existem landing page, callback, acesso indisponível e início autenticado; apenas `/home` tem `authGuard`. O `IdentityApiService` lê `GET /api/v1/platform/me` e mantém `userId` e authorities do servidor. O visual atual é mínimo: fundo claro, fonte system-ui, conteúdo centralizado e componentes com estilos locais; não há biblioteca de UI, tabela, serviço de catálogo ou formulário compartilhado.
+O frontend usa componentes standalone, Angular Router, signals, HttpClient com interceptor funcional e autenticação keycloak-js. A landing, callback, acesso negado e início permanecem; a gestão de categorias foi acrescentada com rotas autenticadas e authorities de /me. O visual continua nativo e sem biblioteca de UI.
 
 O backend é um monólito modular. Categorias e produtos estão no pacote `catalog`, com controllers, records de request/response, serviços, repositórios JPA e migrations Flyway. A API local de desenvolvimento indicada pelo frontend é `http://localhost:8082`; o OpenAPI ainda declara `http://localhost:8080` como server. Essa diferença de URL base deve ser reconciliada numa revisão futura do contrato OpenAPI, sem alterar os paths descritos abaixo.
 
@@ -115,7 +115,7 @@ src/app/catalog/
   shared/                  # apenas controles realmente reutilizados nesta feature
 ```
 
-Rotas sugeridas: `/catalog/products`, `/catalog/products/new`, `/catalog/products/:id/edit`, `/catalog/categories`, `/catalog/categories/new` e `/catalog/categories/:id/edit`. Proteger todas com o `authGuard` atual. Antes da implementação, adicionar `@angular/forms` compatível com a linha Angular já fixada (22.2.x), pois Reactive Forms não está instalada; não adicionar biblioteca visual sem necessidade demonstrada.
+Rotas sugeridas: `/catalog/products`, `/catalog/products/new`, `/catalog/products/:id/edit`, `/catalog/categories`, `/catalog/categories/new` e `/catalog/categories/:id/edit`. Proteger todas com o `authGuard` atual. `@angular/forms` 22.2.3 está instalada e alinhada ao Angular 22.2.3 para Reactive Forms; não adicionar biblioteca visual sem necessidade demonstrada.
 
 ### Serviços e estado
 
@@ -142,11 +142,11 @@ Campos: categoria (`name`, `description`); produto (`sku`, `name`, `description`
 ## 7. Plano incremental de implementação
 
 1. **[Concluída] Modelos e data access:** tipos DTO, página genérica, `CategoryApiService` e `ProductApiService` implementados com testes HTTP locais. A URL, query params, corpos, retorno 204 e propagação de Problem Details estão cobertos. A integração ao interceptor decorre do `HttpClient` configurado no app; autorização real permanece no backend. A representação de `price` é `number` sem conversão no serviço, com precisão integral ainda pendente para a futura UI.
-2. **Leitura de categorias:** rota protegida, paginação/ordenação por nome, status active/inactive, vazios/erros e teste acessível.
-3. **Formulário de categoria:** criar e editar via POST/PUT completo, mensagens de validação/duplicidade, testes dos validators e respostas.
+2. **[Concluída] Gestão de categorias:** listagem autenticada, paginação/ordenação, status active/inactive, estados vazio/erro e cobertura automatizada.
+3. **[Concluída] Escrita de categorias:** criação, edição PUT completo, validações, desativação lógica confirmada e autorização visual por authorities; veja a conclusão desta etapa.
 4. **Leitura de produtos:** paginação server-side e filtros name/SKU/categoria/active, limpeza e combinação de filtros, ordenação `name,asc`, testes dos query params e telas vazia/loading/erro.
 5. **Formulário de produto:** criar/editar, seleção de categorias ativas, preservação de associação atual inativa, precisão decimal, conflito de SKU e categoria inválida; testes de formulário/serviço.
-6. **Desativação e autorização visual:** confirmação, DELETE/204 e atualização da linha; matriz de ações por authorities e testes de roles sem substituir testes/autorização do servidor.
+6. **[Concluída para categorias] Desativação e autorização visual:** confirmação, DELETE/204, atualização e matriz de acesso; produtos continuam pendentes.
 7. **Validação integrada:** lint, todos os testes, build Angular, smoke manual com usuário autorizado e conta autenticada sem permissão se disponível; verificar 401, 403 e comportamento de rede real sem registrar tokens. Confirmar cada passo antes de iniciar o próximo.
 
 ## 8. Estratégia de testes
@@ -184,6 +184,20 @@ Campos: categoria (`name`, `description`); produto (`sku`, `name`, `description`
 - **Smoke real:** a integração OIDC real foi validada para `/me` conforme contexto do solicitante, mas cada operação do catálogo ainda precisa de smoke humano com roles apropriadas e ambiente corrente.
 
 ## 11. Fontes auditadas
+
+## 12. Conclusão da etapa de gestão de categorias
+
+**Status:** modelos e serviços HTTP concluídos; gestão de categorias implementada nesta etapa; interface de produtos permanece pendente.
+
+- Rotas: `/catalog/categories`, `/catalog/categories/new` e `/catalog/categories/:id/edit`. Todas usam `authGuard` e guardas adicionais baseadas nas authorities retornadas por `GET /api/v1/platform/me`.
+- Leitura: `ROLE_ADMIN`, `ROLE_MANAGER`, `ROLE_SALES` e `ROLE_STOCK_OPERATOR`. Escrita: somente `ROLE_ADMIN` e `ROLE_MANAGER`. Ausência ou falha ao carregar `/me` falha fechada. O backend continua responsável pela autorização efetiva.
+- A lista usa `GET /api/v1/categories` com `page` zero-based, `size=20` (máximo permitido 100) e `sort=name,asc`; não inventa busca ou filtro. Categorias inativas são identificadas visualmente.
+- Formulário reativo usa `name` (obrigatório, não branco, máximo 120) e `description` (opcional/nula, máximo 2000). Criação usa POST; edição carrega por UUID e usa PUT completo. O payload não inclui `active`; não há reativação.
+- Desativação confirma com o usuário, envia DELETE, aceita 204 sem corpo e atualiza a página; erros 403/409 recebem mensagens de interface. Erros 400/409 do formulário preservam os campos preenchidos.
+- Navegação global inclui link para Categorias quando autenticado. Não foi adicionada biblioteca visual. `@angular/forms` 22.2.3 foi incluída como dependência runtime alinhada ao Angular 22.2.3 para Reactive Forms; lockfile regenerado.
+- Testes adicionados para listagem, paginação, estado vazio, falha HTTP, confirmação, 204, formulários POST/PUT, validação/conflito, restrição de escrita e guards/rotas. Resultados realmente executados estão em `docs/validation.md`.
+
+**Pendências:** validar manualmente com contas Keycloak apropriadas (ADMIN/MANAGER, leitor e FINANCE); ainda não há tela de consulta individual para perfis somente leitores. Reativação permanece pendente de decisão funcional.
 
 - Frontend: `apps/web/src/app/app.routes.ts`, `app.component.ts`, `pages/home.component.ts`, `pages/landing.component.ts`, `auth/auth.guard.ts`, `auth/auth.service.ts`, `auth/identity-api.service.ts`, `auth/api-token.interceptor.ts`, testes correspondentes, `styles.css`, `package.json`, `angular.json` e ambientes.
 - Backend: `catalog/api/*Controller.java`, request/response records e `PageResponse`; `catalog/application/CategoryService.java`, `ProductService.java`, `CatalogExceptions.java`; `catalog/domain/Category.java`, `Product.java`, repositories; `platform/error/ApiExceptionHandler.java`, `platform/security/SecurityConfiguration.java`, `platform/web/PaginationConfiguration.java`; migrations V2/V3 e `CatalogIntegrationTest.java`.

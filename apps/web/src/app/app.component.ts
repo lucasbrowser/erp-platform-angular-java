@@ -1,16 +1,22 @@
 import { Component, inject } from "@angular/core";
-import { RouterOutlet } from "@angular/router";
+import { RouterLink, RouterOutlet } from "@angular/router";
 import { AuthService } from "./auth/auth.service";
 
 @Component({
   selector: "erp-root",
-  imports: [RouterOutlet],
+  imports: [RouterLink, RouterOutlet],
   template: `
     <main>
       <header>
         <h1>ERP Core</h1>
         <span aria-live="polite">{{ auth.status() }}</span>
       </header>
+      @if (auth.status() === "authenticated") {
+        <nav aria-label="Navegação principal">
+          <a routerLink="/home">Início</a
+          ><a routerLink="/catalog/categories">Categorias</a>
+        </nav>
+      }
       <router-outlet />
     </main>
   `,
@@ -30,6 +36,11 @@ import { AuthService } from "./auth/auth.service";
         display: flex;
         align-items: baseline;
         justify-content: space-between;
+      }
+      nav {
+        display: flex;
+        gap: 1rem;
+        padding: 0.75rem 0;
       }
     `,
   ],
