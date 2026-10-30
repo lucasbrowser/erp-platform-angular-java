@@ -1,6 +1,6 @@
 # SDD — Catálogo no Angular
 
-**Status:** especificação para revisão; nenhuma interface de catálogo está implementada.
+**Status:** serviços e modelos HTTP da primeira etapa implementados; páginas e formulários de catálogo continuam pendentes.
 
 ## 1. Objetivo e contexto observado
 
@@ -31,6 +31,8 @@ O backend é um monólito modular. Categorias e produtos estão no pacote `catal
 ## 3. Contratos existentes
 
 Base local atual: `http://localhost:8082`; prefixo funcional: `/api/v1`. Todas as rotas abaixo exigem access token Bearer. Não enviar ID token. Respostas de sucesso usam JSON, exceto DELETE que retorna 204 sem corpo.
+
+Na etapa de serviços/modelos, os tipos TypeScript representam `price` como `number`, conforme o JSON atual, e os serviços passam os corpos sem conversão ou arredondamento. Isso não elimina o limite de precisão de JavaScript identificado abaixo; a estratégia decimal segue pendente antes da construção dos formulários.
 
 ### 3.1 Categorias
 
@@ -117,7 +119,7 @@ Rotas sugeridas: `/catalog/products`, `/catalog/products/new`, `/catalog/product
 
 ### Serviços e estado
 
-- `CatalogApiService` concentra URLs, query params tipados, DTOs e métodos HTTP. Usar base `environment.apiBaseUrl` (`http://localhost:8082/api` no dev) e paths relativos `/v1/...`; não duplicar host ou versão em componentes.
+- Os serviços de data access da feature concentram URLs, query params tipados, DTOs e métodos HTTP. A primeira etapa usa `CategoryApiService` e `ProductApiService`, compartilhando utilitários de URL/paginação. Usar base `environment.apiBaseUrl` (`http://localhost:8082/api` no dev) e paths relativos `/v1/...`; não duplicar host ou versão em componentes.
 - Integrar com `apiTokenInterceptor` existente, que atualiza token e só envia bearer para origem/path da API. Não ler tokens no componente nem registrar headers.
 - Usar sinais/estado local de página conforme padrão atual. Cada operação assíncrona deve representar loading, sucesso/lista vazia, erro de rede e status 401/403/404/409.
 - Não existe handler global de Problem Details para reutilizar. Criar mapper tipado na feature se necessário, mantendo erro HTTP de negócio local e sem acrescentar interceptor global genérico.
@@ -139,7 +141,7 @@ Campos: categoria (`name`, `description`); produto (`sku`, `name`, `description`
 
 ## 7. Plano incremental de implementação
 
-1. **Modelos e data access:** adicionar tipos DTO, página genérica e `CatalogApiService`; testar URLs, query params, Bearer via interceptor, 400/401/403/404/409 e respostas 201/204. Resolver formato/precisão de `price` antes de fixar modelo final.
+1. **[Concluída] Modelos e data access:** tipos DTO, página genérica, `CategoryApiService` e `ProductApiService` implementados com testes HTTP locais. A URL, query params, corpos, retorno 204 e propagação de Problem Details estão cobertos. A integração ao interceptor decorre do `HttpClient` configurado no app; autorização real permanece no backend. A representação de `price` é `number` sem conversão no serviço, com precisão integral ainda pendente para a futura UI.
 2. **Leitura de categorias:** rota protegida, paginação/ordenação por nome, status active/inactive, vazios/erros e teste acessível.
 3. **Formulário de categoria:** criar e editar via POST/PUT completo, mensagens de validação/duplicidade, testes dos validators e respostas.
 4. **Leitura de produtos:** paginação server-side e filtros name/SKU/categoria/active, limpeza e combinação de filtros, ordenação `name,asc`, testes dos query params e telas vazia/loading/erro.
