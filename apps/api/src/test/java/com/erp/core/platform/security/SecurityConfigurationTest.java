@@ -216,7 +216,9 @@ class SecurityConfigurationTest {
                 .andExpect(status().isForbidden());
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v2/products")
                         .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"sku\":\"FORBIDDEN-SKU\",\"name\":\"Forbidden product\",\"categoryId\":\""
+                                + java.util.UUID.randomUUID() + "\",\"price\":\"1.00\"}"))
                 .andExpect(status().isForbidden());
     }
 

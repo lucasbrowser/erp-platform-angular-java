@@ -51,14 +51,14 @@ class OpenApiContractTest {
         methods.forEach((path, expected) -> assertThat(result.getOpenAPI().getPaths().get(path).readOperationsMap().keySet())
                 .as("operations for " + path)
                 .containsExactlyInAnyOrderElementsOf(expected));
-        assertThat(propertySchema(result.getOpenAPI(), "ProductV2Request", "price").getType())
-                .isEqualTo("string");
-        assertThat(propertySchema(result.getOpenAPI(), "ProductV2", "price").getType())
-                .isEqualTo("string");
-        assertThat(propertySchema(result.getOpenAPI(), "ProductRequest", "price").getType())
-                .isEqualTo("number");
-        assertThat(propertySchema(result.getOpenAPI(), "Product", "price").getType())
-                .isEqualTo("number");
+        assertThat(schemaTypes(propertySchema(result.getOpenAPI(), "ProductV2Request", "price")))
+                .containsExactly("string");
+        assertThat(schemaTypes(propertySchema(result.getOpenAPI(), "ProductV2", "price")))
+                .containsExactly("string");
+        assertThat(schemaTypes(propertySchema(result.getOpenAPI(), "ProductRequest", "price")))
+                .containsExactly("number");
+        assertThat(schemaTypes(propertySchema(result.getOpenAPI(), "Product", "price")))
+                .containsExactly("number");
         assertThat(propertySchema(result.getOpenAPI(), "ProductV2Request", "price").getPattern())
                 .isEqualTo("^(0|[1-9][0-9]{0,11})\\.[0-9]{2}$");
         assertThat(propertySchema(result.getOpenAPI(), "ProductV2", "price").getPattern())
@@ -76,5 +76,12 @@ class OpenApiContractTest {
             throw new AssertionError("Missing or invalid OpenAPI property: " + schemaName + "." + propertyName);
         }
         return propertySchema;
+    }
+
+    private Set<String> schemaTypes(Schema<?> schema) {
+        if (schema.getTypes() != null) {
+            return schema.getTypes();
+        }
+        return schema.getType() == null ? Set.of() : Set.of(schema.getType());
     }
 }

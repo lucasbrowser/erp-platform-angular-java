@@ -215,7 +215,9 @@ class CatalogIntegrationTest {
         mockMvc.perform(post("/api/v1/categories").with(csrf()).contentType("application/json")
                         .content("{\"name\":\"Forbidden\"}"))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(post("/api/v2/products").with(csrf()).contentType("application/json").content("{}"))
+        String validV2Product = "{\"sku\":\"FORBIDDEN-SKU\",\"name\":\"Forbidden product\",\"categoryId\":\""
+                + UUID.randomUUID() + "\",\"price\":\"1.00\"}";
+        mockMvc.perform(post("/api/v2/products").with(csrf()).contentType("application/json").content(validV2Product))
                 .andExpect(status().isForbidden());
     }
 
