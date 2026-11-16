@@ -3,6 +3,8 @@ package com.erp.core.platform.contract;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.swagger.v3.oas.models.PathItem.HttpMethod;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.parser.OpenAPIV3Parser;
 import io.swagger.v3.parser.core.models.ParseOptions;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
@@ -49,11 +51,30 @@ class OpenApiContractTest {
         methods.forEach((path, expected) -> assertThat(result.getOpenAPI().getPaths().get(path).readOperationsMap().keySet())
                 .as("operations for " + path)
                 .containsExactlyInAnyOrderElementsOf(expected));
-        assertThat(result.getOpenAPI().getComponents().getSchemas().get("ProductV2Request")
-                .getProperties().get("price").getType()).isEqualTo("string");
-        assertThat(result.getOpenAPI().getComponents().getSchemas().get("ProductV2")
-                .getProperties().get("price").getType()).isEqualTo("string");
-        assertThat(result.getOpenAPI().getComponents().getSchemas().get("ProductRequest")
-                .getProperties().get("price").getType()).isEqualTo("number");
+        assertThat(propertySchema(result.getOpenAPI(), "ProductV2Request", "price").getType())
+                .isEqualTo("string");
+        assertThat(propertySchema(result.getOpenAPI(), "ProductV2", "price").getType())
+                .isEqualTo("string");
+        assertThat(propertySchema(result.getOpenAPI(), "ProductRequest", "price").getType())
+                .isEqualTo("number");
+        assertThat(propertySchema(result.getOpenAPI(), "Product", "price").getType())
+                .isEqualTo("number");
+        assertThat(propertySchema(result.getOpenAPI(), "ProductV2Request", "price").getPattern())
+                .isEqualTo("^(0|[1-9][0-9]{0,11})\\.[0-9]{2}$");
+        assertThat(propertySchema(result.getOpenAPI(), "ProductV2", "price").getPattern())
+                .isEqualTo("^(0|[1-9][0-9]{0,11})\\.[0-9]{2}$");
+    }
+
+    private Schema<?> propertySchema(OpenAPI openAPI, String schemaName, String propertyName) {
+        Object component = openAPI.getComponents().getSchemas().get(schemaName);
+        if (!(component instanceof Schema<?> componentSchema)) {
+            throw new AssertionError("Missing or invalid OpenAPI schema: " + schemaName);
+        }
+
+        Object property = componentSchema.getProperties().get(propertyName);
+        if (!(property instanceof Schema<?> propertySchema)) {
+            throw new AssertionError("Missing or invalid OpenAPI property: " + schemaName + "." + propertyName);
+        }
+        return propertySchema;
     }
 }
