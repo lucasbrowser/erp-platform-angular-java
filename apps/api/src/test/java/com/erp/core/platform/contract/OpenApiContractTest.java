@@ -32,7 +32,9 @@ class OpenApiContractTest {
                         "/api/v1/categories",
                         "/api/v1/categories/{id}",
                         "/api/v1/products",
-                        "/api/v1/products/{id}");
+                        "/api/v1/products/{id}",
+                        "/api/v2/products",
+                        "/api/v2/products/{id}");
 
         Map<String, Set<HttpMethod>> methods = Map.of(
                 "/actuator/health", Set.of(HttpMethod.GET),
@@ -41,9 +43,17 @@ class OpenApiContractTest {
                 "/api/v1/categories", Set.of(HttpMethod.GET, HttpMethod.POST),
                 "/api/v1/categories/{id}", Set.of(HttpMethod.GET, HttpMethod.PUT, HttpMethod.DELETE),
                 "/api/v1/products", Set.of(HttpMethod.GET, HttpMethod.POST),
-                "/api/v1/products/{id}", Set.of(HttpMethod.GET, HttpMethod.PUT, HttpMethod.DELETE));
+                "/api/v1/products/{id}", Set.of(HttpMethod.GET, HttpMethod.PUT, HttpMethod.DELETE),
+                "/api/v2/products", Set.of(HttpMethod.GET, HttpMethod.POST),
+                "/api/v2/products/{id}", Set.of(HttpMethod.GET, HttpMethod.PUT, HttpMethod.DELETE));
         methods.forEach((path, expected) -> assertThat(result.getOpenAPI().getPaths().get(path).readOperationsMap().keySet())
                 .as("operations for " + path)
                 .containsExactlyInAnyOrderElementsOf(expected));
+        assertThat(result.getOpenAPI().getComponents().getSchemas().get("ProductV2Request")
+                .getProperties().get("price").getType()).isEqualTo("string");
+        assertThat(result.getOpenAPI().getComponents().getSchemas().get("ProductV2")
+                .getProperties().get("price").getType()).isEqualTo("string");
+        assertThat(result.getOpenAPI().getComponents().getSchemas().get("ProductRequest")
+                .getProperties().get("price").getType()).isEqualTo("number");
     }
 }

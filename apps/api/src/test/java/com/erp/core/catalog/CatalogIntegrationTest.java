@@ -87,6 +87,8 @@ class CatalogIntegrationTest {
         String response = mockMvc.perform(post("/api/v1/products").with(csrf()).contentType("application/json").content(productBody))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.sku").value("AB-12"))
                 .andExpect(jsonPath("$.price").value(12.50)).andReturn().getResponse().getContentAsString();
+        assertThat(com.fasterxml.jackson.databind.json.JsonMapper.builder().build().readTree(response).get("price").isNumber())
+                .isTrue();
         UUID id = UUID.fromString(com.fasterxml.jackson.databind.json.JsonMapper.builder().build()
                 .readTree(response).get("id").asText());
 
@@ -105,6 +107,57 @@ class CatalogIntegrationTest {
         mockMvc.perform(put("/api/v1/products/{id}", id).with(csrf()).contentType("application/json")
                         .content(updateAfterDeactivation))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.active").value(false));
+    }
+
+    @Test
+    @WithMockUser(roles = "MANAGER")
+    void v2UsesExactDecimalStringsAndPersistsBoundaryValues() throws Exception {
+        UUID categoryId = createCategory("V2MoneyCategory");
+        String[] values = {"0.01", "10.99", "999999999999.99"};
+        String[] skus = {"V2-CENT", "V2-PRICE", "V2-MAX"};
+        for (int index = 0; index < values.length; index++) {
+            String response = mockMvc.perform(post("/api/v2/products").with(csrf()).contentType("application/json")
+                            .content(productV2Body(skus[index], "V2 product " + index, categoryId, values[index])))
+                    .andExpect(status().isCreated()).andExpect(jsonPath("$.price").value(values[index]))
+                    .andReturn().getResponse().getContentAsString();
+            var tree = com.fasterxml.jackson.databind.json.JsonMapper.builder().build().readTree(response);
+            assertThat(tree.get("price").isTextual()).isTrue();
+            UUID id = UUID.fromString(tree.get("id").asText());
+            assertThat(products.findById(id).orElseThrow().getPrice().compareTo(new BigDecimal(values[index]))).isZero();
+            mockMvc.perform(get("/api/v2/products/{id}", id)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.price").value(values[index]));
+            if (index == 0) {
+                mockMvc.perform(put("/api/v2/products/{id}", id).with(csrf()).contentType("application/json")
+                                .content(productV2Body(skus[index], "Updated cents", categoryId, "0.01")))
+                        .andExpect(status().isOk()).andExpect(jsonPath("$.price").value("0.01"));
+                mockMvc.perform(delete("/api/v2/products/{id}", id).with(csrf())).andExpect(status().isNoContent());
+            }
+        }
+        mockMvc.perform(get("/api/v2/products").param("name", "V2 product").param("sku", "V2-")
+                        .param("categoryId", categoryId.toString()).param("active", "true")
+                        .param("page", "0").param("size", "2").param("sort", "name,asc"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].price").isString());
+    }
+
+    @Test
+    @WithMockUser(roles = "MANAGER")
+    void v2RejectsInvalidDecimalStringsWithoutRounding() throws Exception {
+        UUID categoryId = createCategory("V2InvalidMoneyCategory");
+        String[] invalid = {"-0.01", "1000000000000.00", "1.234", "abc", "", "null"};
+        for (int index = 0; index < invalid.length; index++) {
+            String price = invalid[index].equals("null") ? "null" : "\"" + invalid[index] + "\"";
+            String body = "{\"sku\":\"V2-BAD-" + index + "\",\"name\":\"Invalid\",\"categoryId\":\""
+                    + categoryId + "\",\"price\":" + price + "}";
+            mockMvc.perform(post("/api/v2/products").with(csrf()).contentType("application/json").content(body))
+                    .andExpect(status().isBadRequest());
+        }
+        String missingPrice = "{\"sku\":\"V2-MISSING\",\"name\":\"Invalid\",\"categoryId\":\"" + categoryId + "\"}";
+        mockMvc.perform(post("/api/v2/products").with(csrf()).contentType("application/json").content(missingPrice))
+                .andExpect(status().isBadRequest());
+        String numericPrice = "{\"sku\":\"V2-NUMBER\",\"name\":\"Invalid\",\"categoryId\":\"" + categoryId
+                + "\",\"price\":1.00}";
+        mockMvc.perform(post("/api/v2/products").with(csrf()).contentType("application/json").content(numericPrice))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -153,6 +206,7 @@ class CatalogIntegrationTest {
     void catalogRequiresAuthentication() throws Exception {
         mockMvc.perform(get("/api/v1/categories")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/v1/products")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v2/products")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -160,6 +214,8 @@ class CatalogIntegrationTest {
     void salesCanReadButCannotChangeCatalog() throws Exception {
         mockMvc.perform(post("/api/v1/categories").with(csrf()).contentType("application/json")
                         .content("{\"name\":\"Forbidden\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v2/products").with(csrf()).contentType("application/json").content("{}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -218,6 +274,11 @@ class CatalogIntegrationTest {
     private String productBody(String sku, String name, UUID categoryId, String price) {
         return "{\"sku\":\"" + sku + "\",\"name\":\"" + name + "\",\"description\":null,\"categoryId\":\""
                 + categoryId + "\",\"price\":" + price + "}";
+    }
+
+    private String productV2Body(String sku, String name, UUID categoryId, String price) {
+        return "{\"sku\":\"" + sku + "\",\"name\":\"" + name + "\",\"description\":null,\"categoryId\":\""
+                + categoryId + "\",\"price\":\"" + price + "\"}";
     }
 
     private void assertDatabaseConstraint(Runnable statement) {

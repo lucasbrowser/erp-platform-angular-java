@@ -207,16 +207,25 @@ class SecurityConfigurationTest {
         String token = bearer("SALES", ISSUER, "erp-core-api");
         mockMvc.perform(get("/api/v1/categories").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v2/products").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/categories")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Security test category\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v2/products")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void productionRoleMappingDeniesFinanceCatalogRead() throws Exception {
         mockMvc.perform(get("/api/v1/products").header("Authorization",
+                        "Bearer " + bearer("FINANCE", ISSUER, "erp-core-api")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v2/products").header("Authorization",
                         "Bearer " + bearer("FINANCE", ISSUER, "erp-core-api")))
                 .andExpect(status().isForbidden());
     }
