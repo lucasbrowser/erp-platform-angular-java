@@ -60,5 +60,16 @@ describe("category authorization", () => {
       routes.find((route) => route.path === "catalog/categories/:id/edit")
         ?.canActivate,
     ).toHaveLength(3);
+    expect(
+      routes.find((route) => route.path === "catalog/products")?.canActivate,
+    ).toHaveLength(2);
+    expect(
+      routes.find((route) => route.path === "catalog/products/new")
+        ?.canActivate,
+    ).toHaveLength(3);
+    expect(
+      routes.find((route) => route.path === "catalog/products/:id/edit")
+        ?.canActivate,
+    ).toHaveLength(3);
   });
 });

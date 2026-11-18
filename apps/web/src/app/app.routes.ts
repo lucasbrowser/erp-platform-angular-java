@@ -6,6 +6,8 @@ import {
 } from "./catalog/categories/category-access.guard";
 import { CategoryFormComponent } from "./catalog/categories/category-form.component";
 import { CategoryListComponent } from "./catalog/categories/category-list.component";
+import { ProductFormComponent } from "./catalog/products/product-form.component";
+import { ProductListComponent } from "./catalog/products/product-list.component";
 import { AccessDeniedComponent } from "./pages/access-denied.component";
 import { AuthCallbackComponent } from "./pages/auth-callback.component";
 import { HomeComponent } from "./pages/home.component";
@@ -16,6 +18,21 @@ export const routes: Routes = [
   { path: "auth/callback", component: AuthCallbackComponent },
   { path: "access-denied", component: AccessDeniedComponent },
   { path: "home", component: HomeComponent, canActivate: [authGuard] },
+  {
+    path: "catalog/products",
+    component: ProductListComponent,
+    canActivate: [authGuard, categoryReadGuard],
+  },
+  {
+    path: "catalog/products/new",
+    component: ProductFormComponent,
+    canActivate: [authGuard, categoryReadGuard, categoryWriteGuard],
+  },
+  {
+    path: "catalog/products/:id/edit",
+    component: ProductFormComponent,
+    canActivate: [authGuard, categoryReadGuard, categoryWriteGuard],
+  },
   {
     path: "catalog/categories",
     component: CategoryListComponent,

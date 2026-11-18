@@ -27,7 +27,7 @@ O rastreio integral de `BigDecimal`, `NUMERIC`, `price`, `total`, `amount` e ter
 | Modelo Angular | `catalog.models.ts` | `Product.price` e `ProductWriteRequest.price` são `string` | Transporte tipado compatível com v2; não usar `number` em valor monetário. |
 | Serviço Angular | `ProductApiService` | GET/POST/PUT/DELETE usam `/api/v2/products`; request é enviado sem conversão | Contrato v2 explícito; `CategoryApiService` continua em `/api/v1/categories`. |
 | Teste Angular | `product-api.service.spec.ts` | Verifica URL v2, filtros/paginação, bodies string, preço máximo, 204 e propagação de erro HTTP | Sem dependência de conversão monetária para number. |
-| Interface Angular | Catálogo de produto ainda não tem formulário | Sem parser/formatação monetária implementados | Formulário e formatter exato continuam fora desta etapa. |
+| Interface Angular | Formulário e lista de produtos usam o serviço v2 | Entrada e saída monetária tratadas como strings | Parser textual aceita vírgula/ponto, valida escala e limite, e formatter BRL não converte para number. |
 | Pedidos | Nenhum arquivo correspondente encontrado em `apps/api`/`apps/web` | Nenhum modelo/endpoint/cálculo de pedido presente | Escopo futuro; preço unitário e total devem ser string no wire e `BigDecimal`/NUMERIC internamente. |
 
 `docs/specs/products-angular.md` e `docs/specs/catalog-angular.md` já registram a perda potencial em JavaScript number e recomendam string decimal com evolução compatível/versionada. Esta decisão consolida a recomendação também para domínios monetários futuros.
@@ -91,7 +91,7 @@ A é a escolha aplicada e garante opt-in explícito. Alternativa B não foi usad
 - Manter o controle do formulário como texto decimal, com validação local coerente; serializar string canônica e exibir resposta sem converter a number.
 - Implementar formatter `pt-BR` sem perda, separando representação e wire. Não adicionar biblioteca até avaliar se formatter/aritmética interna simples atende; se dependência for necessária, propor e testar separadamente.
 
-**Estado:** modelos e serviço HTTP foram migrados nesta etapa; controles de formulário e formatter permanecem pendentes.
+**Estado:** modelos, serviço HTTP, formulário e lista foram migrados para v2. Formulário usa controle textual, normaliza para duas casas sem arredondar e formatter exibe BRL por transformação textual.
 
 ### Tarefa 6 — Testes de integração
 
@@ -105,7 +105,7 @@ A é a escolha aplicada e garante opt-in explícito. Alternativa B não foi usad
 - Alinhar DTOs, controllers, testes de contrato e URLs documentadas (inclusive divergência localhost 8080/8082 já registrada nas specs de catálogo).
 - Atualizar `products-angular.md`, `catalog-angular.md`, documentação de onboarding e exemplos para diferenciar v1/v2 e registrar sequência de migração.
 
-**Estado atualizado:** tarefas 1–3, 6 (contrato/backend e segurança), OpenAPI de produtos v2 e parte de data access da Tarefa 5 foram implementados. `ProductApiService` chama `/api/v2/products`; modelos `Product` e `ProductWriteRequest` usam `price: string`; query parameters, bodies e erros HTTP continuam no serviço existente. `catalogProductV2Url()` escolhe a versão para produtos, enquanto categorias seguem em v1. Não foram implementados formulários, componentes de produto, parser de entrada ou formatação BRL. A spec `catalog-angular.md` ainda contém a fotografia anterior da camada de dados e precisa ser sincronizada em etapa documental própria.
+**Estado atualizado:** contrato v2, DTOs, validação, segurança e OpenAPI estão implementados no backend. `ProductApiService` chama `/api/v2/products`; modelos `Product` e `ProductWriteRequest` usam `price: string`; categorias continuam na v1. A UI de produtos foi implementada com lista, filtros, paginação, formulário, seleção de categoria, desativação e formatter BRL exato baseado em strings. Entrada monetária aceita vírgula ou ponto, não aceita arredondamento e gera exatamente duas casas para o payload. Testes e build da UI ainda precisam ser executados no ambiente Windows exigido pela tarefa.
 
 ## 6. Critérios de aceite
 

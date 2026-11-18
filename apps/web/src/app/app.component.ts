@@ -14,6 +14,7 @@ import { AuthService } from "./auth/auth.service";
       @if (auth.status() === "authenticated") {
         <nav aria-label="Navegação principal">
           <a routerLink="/home">Início</a
+          ><a routerLink="/catalog/products">Produtos</a
           ><a routerLink="/catalog/categories">Categorias</a>
         </nav>
       }
