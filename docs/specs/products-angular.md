@@ -1,36 +1,36 @@
 # SDD — Gestão de produtos no Angular
 
-**Status:** especificação baseada no backend e no catálogo Angular existentes. A interface de produtos ainda não está implementada. Este documento não altera contratos nem código funcional.
+**Status:** modelos TypeScript e serviço HTTP de produtos consomem a API v2. Formulários e componentes visuais de produtos continuam pendentes.
 
 ## 1. Contexto e objetivo
 
-Especificar a gestão de produtos no frontend Angular reaproveitando o data access do catálogo já implementado, os modelos de categoria/paginação, autenticação, guards, rotas standalone, sinais, Reactive Forms e estilos nativos existentes. A API fica em `/api/v1`; no ambiente web local atual, `environment.apiBaseUrl` é `http://localhost:8082/api`.
+Especificar a gestão de produtos no frontend Angular reaproveitando o data access do catálogo, modelos de categoria/paginação, autenticação, guards, rotas standalone, sinais, Reactive Forms e estilos nativos existentes. O serviço de produtos usa `/api/v2/products`; categorias continuam em `/api/v1/categories`. A base local vem de `environment.apiBaseUrl` (`http://localhost:8082/api`).
 
 O escopo inclui listagem paginada e filtrada, consulta, cadastro, edição, seleção de categoria, preço BRL e desativação lógica. Não inclui estoque, imagens, promoções, exclusão física, reativação ou campos/endpoints não presentes no backend.
 
 ## 2. Contratos reais do backend
 
-Fontes: `ProductController`, `ProductService`, `ProductRequest`, `ProductResponse`, `PageResponse`, entidade `Product`, repositórios, `SecurityConfiguration` e migrations V1–V3. Todas as rotas `/api/**` exigem bearer JWT válido com issuer/audience aceitos; a configuração é stateless. O controller aplica as authorities listadas abaixo.
+Fontes: controllers v1/v2, DTOs `ProductV2Request`/`ProductV2Response`, `ProductService`, `PageResponse`, entidade `Product`, repositórios, `SecurityConfiguration` e migrations V1–V3. A API v1 segue disponível sem alteração e continua com preço numérico; o Angular deste catálogo usa a v2, cujo preço é string decimal. Todas as rotas `/api/**` exigem bearer JWT válido com issuer/audience aceitos; a configuração é stateless.
 
 | Operação | Contrato | Autoridade | Sucesso |
 |---|---|---|---|
-| Listar | `GET /api/v1/products?page=0&size=20&sort=name,asc` | ADMIN, MANAGER, SALES, STOCK_OPERATOR | 200 `PageResponse<ProductResponse>` |
-| Consultar | `GET /api/v1/products/{id}` | ADMIN, MANAGER, SALES, STOCK_OPERATOR | 200 `ProductResponse` |
-| Criar | `POST /api/v1/products` | ADMIN, MANAGER | 201 `ProductResponse` e `Location` |
-| Atualizar | `PUT /api/v1/products/{id}` | ADMIN, MANAGER | 200 `ProductResponse` |
-| Desativar | `DELETE /api/v1/products/{id}` | ADMIN, MANAGER | 204 vazio |
+| Listar | `GET /api/v2/products?page=0&size=20&sort=name,asc` | ADMIN, MANAGER, SALES, STOCK_OPERATOR | 200 `PageResponse<ProductV2Response>` |
+| Consultar | `GET /api/v2/products/{id}` | ADMIN, MANAGER, SALES, STOCK_OPERATOR | 200 `ProductV2Response` |
+| Criar | `POST /api/v2/products` | ADMIN, MANAGER | 201 `ProductV2Response` e `Location` |
+| Atualizar | `PUT /api/v2/products/{id}` | ADMIN, MANAGER | 200 `ProductV2Response` |
+| Desativar | `DELETE /api/v2/products/{id}` | ADMIN, MANAGER | 204 vazio |
 
 Filtros opcionais reais do GET: `name` (contains, case-insensitive), `sku` (contains após trim/uppercase), `categoryId` (UUID exato), `active` (boolean). Filtros são combinados por AND. `name`/`sku` vazios ou brancos são ignorados. Sem `active`, a página inclui ativos e inativos. A pesquisa escapa `%`, `_` e `\\` como caracteres literais. Spring Pageable usa página zero-based, padrão 20, ordenação padrão por `name` ascendente; não há limite máximo de `size` explícito no controller auditado. `sort` usa a sintaxe Spring e não tem allowlist específica no controller. UI deve começar com `name,asc`, sem oferecer ordenações adicionais até serem verificadas.
 
 Corpo completo de criação e PUT:
 
 ```json
-{"sku":"AB-120","name":"Parafuso","description":null,"categoryId":"<uuid>","price":12.50}
+{"sku":"AB-120","name":"Parafuso","description":null,"categoryId":"<uuid>","price":"12.50"}
 ```
 
-`sku`: obrigatório, não branco, até 64 caracteres; serviço aplica trim e uppercase, unicidade exata no valor normalizado. `name`: obrigatório, não branco, até 160; serviço aplica trim. `description`: opcional/nulo, até 2000. `categoryId`: UUID obrigatório e existente. Criação requer categoria ativa. Em edição, categoria inativa pode permanecer somente se for a associação atual; troca para categoria inativa resulta em conflito. `price`: `BigDecimal` obrigatório, mínimo zero, até 12 dígitos inteiros e 2 fracionários (`@Digits`), persistido em `NUMERIC(14,2)` com constraint de não negativo.
+`sku`: obrigatório, não branco, até 64 caracteres; serviço aplica trim e uppercase, unicidade exata no valor normalizado. `name`: obrigatório, não branco, até 160; serviço aplica trim. `description`: opcional/nulo, até 2000. `categoryId`: UUID obrigatório e existente. Criação requer categoria ativa. Em edição, categoria inativa pode permanecer somente se for a associação atual; troca para categoria inativa resulta em conflito. Na v2, `price` deve ser string canônica que corresponda a `(?:0|[1-9][0-9]{0,11})\\.[0-9]{2}`: mínimo `0.00`, máximo `999999999999.99`, exatamente duas casas e sem arredondamento. O backend converte diretamente para `BigDecimal` e persiste em `NUMERIC(14,2)`. A v1 mantém seu DTO e número JSON.
 
-Resposta de produto: `id` UUID, `sku`, `name`, `description` nullable, `categoryId` UUID, `price`, `active`, `createdAt`, `updatedAt` (`Instant`/ISO-8601). `active` não é aceito no request. A página contém `content`, `page`, `size`, `totalElements`, `totalPages`, `first`, `last`.
+Resposta v2: `id` UUID, `sku`, `name`, `description` nullable, `categoryId` UUID, `price` string decimal com duas casas, `active`, `createdAt`, `updatedAt` (`Instant`/ISO-8601). `active` não é aceito no request. A página contém `content`, `page`, `size`, `totalElements`, `totalPages`, `first`, `last`.
 
 Migrations: V1 cria schema `erp`; V2 cria `erp.products` e `erp.categories`, FK `category_id`, SKU único, índice por categoria e índice `(active, lower(name))`, checks de preço não negativo e SKU normalizado; V3 exige nome trimado/não vazio e SKU não vazio. O preço no Java usa `BigDecimal` na request, domínio e response.
 
@@ -38,7 +38,7 @@ Erros observáveis documentados no projeto: 400 para validação/parâmetro inv�
 
 ## 3. Precisão monetária e decisão
 
-O armazenamento `NUMERIC(14,2)` comporta até `999999999999.99`. Java `BigDecimal` mantém decimal exato, e `@Digits(integer=12,fraction=2)` rejeita mais de duas casas e mais que 12 dígitos inteiros. O contrato JSON atual, entretanto, representa `price` como número; Jackson normalmente serializa `BigDecimal` como token JSON numérico. O `HttpClient` decodifica esse token como JavaScript `number`, que não representa exatamente todos os centavos em toda a faixa. Um arredondamento pode ocorrer antes do próximo envio, mesmo que Java e PostgreSQL sejam exatos.
+O armazenamento `NUMERIC(14,2)` comporta até `999999999999.99`. Java `BigDecimal` mantém decimal exato. Na v1, o preço continua sendo número JSON e pode perder precisão ao ser interpretado como JavaScript `number`. A API v2 entrega e recebe o preço como string decimal; os modelos e o serviço Angular agora preservam essa string sem conversão monetária. Esta etapa não cria formulário, parser de entrada nem formatação BRL.
 
 | Alternativa | Precisão ponta a ponta | Impacto |
 |---|---|---|
@@ -46,13 +46,13 @@ O armazenamento `NUMERIC(14,2)` comporta até `999999999999.99`. Java `BigDecima
 | 2. Decimal JSON string + Java `BigDecimal` | Sim, se frontend trata como string decimal e não converte a `number`; pode validar/formatar com parser decimal exato. | Mudança incompatível para clientes que esperam number; Jackson pode aceitar string numérica para `BigDecimal`, mas resposta muda de tipo. Exige contrato explícito, OpenAPI, testes de serialização e coordenação/versionamento de consumidores. |
 | 3. Biblioteca decimal no frontend com contrato atual | Entrada/cálculo pode ser exato após parsing do texto, mas o JSON number já pode chegar aproximado e a serialização via `number` pode perder precisão. Uma biblioteca não restaura informação perdida na resposta. | Dependência nova e complexidade; não resolve sozinha o contrato atual. |
 
-**Recomendação:** evoluir o contrato para `price` como string decimal canônica em request e response, mantendo Java `BigDecimal` e PostgreSQL `NUMERIC(14,2)`. Exemplo: `"price":"999999999999.99"`. Fazer isso como mudança coordenada e explicitamente versionada/compatibilizada (preferencialmente nova versão de API ou rollout com contrato dual bem definido); não trocar silenciosamente o tipo na API v1. No Angular, manter o valor de edição como string decimal, validar até duas casas e limite, sem passagem por `number`; usar `Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })` somente depois de construir representação decimal segura ou por formatter decimal exato. Não serializar via `Number`.
+**Decisão implementada:** a API v2 usa `price` como string decimal canônica em request e response, mantendo Java `BigDecimal` e PostgreSQL `NUMERIC(14,2)`. O Angular usa `price: string` e envia produtos para `/api/v2/products`; não converte preço para `number`. A v1 não foi alterada. Formatação brasileira permanece uma decisão de apresentação para a etapa de UI; nenhum formatter ou formulário é criado nesta etapa.
 
-Se for obrigatório implementar primeiro contra o contrato v1 atual, limitar o frontend a texto decimal, evitar converter em `number` antes do POST/PUT e registrar que o parse do response `number` não assegura fidelidade no limite. Não declarar isso como solução plenamente precisa. Nenhuma biblioteca decimal está instalada no catálogo atual.
+Não há biblioteca decimal instalada ou necessária para esta integração HTTP: o cliente transporta os valores como strings. Se cálculos monetários no frontend forem introduzidos futuramente, devem ser especificados sem conversão para ponto flutuante.
 
 ## 4. Arquitetura e interface Angular
 
-Reutilizar `ProductApiService` (`list/get/create/update/deactivate`), `CategoryApiService`, `catalogResourceUrl`, `pageableHttpParams`, `appendNonEmptyParam`, `ProductListQuery`, `Product`, `ProductWriteRequest`, `PageResponse`, interceptor de token e padrões de `CategoryListComponent`/`CategoryFormComponent`. Os serviços já enviam os filtros reais e DELETE como `Observable<void>`. O modelo atual tipa `price` como `number`; mudar para string somente junto da evolução contratual acordada.
+Reutilizar `ProductApiService` (`list/get/create/update/deactivate`), `CategoryApiService`, `catalogProductV2Url`, `catalogResourceUrl` (categorias v1), `pageableHttpParams`, `appendNonEmptyParam`, `ProductListQuery`, `Product`, `ProductWriteRequest`, `PageResponse`, interceptor de token e padrões de `CategoryListComponent`/`CategoryFormComponent`. Os serviços enviam os filtros existentes e DELETE como `Observable<void>`. Modelos de resposta/criação/atualização usam `price: string`; serviço não converte nem formata o valor.
 
 Rotas a acrescentar em `app.routes.ts`: `/catalog/products`, `/catalog/products/new`, `/catalog/products/:id/edit`, protegidas por `authGuard` e guards de leitura/escrita conforme categoria. Incluir navegação Produtos junto de Categorias. Leitura para `ROLE_ADMIN`, `ROLE_MANAGER`, `ROLE_SALES`, `ROLE_STOCK_OPERATOR`; escrita e ações visíveis apenas para `ROLE_ADMIN`, `ROLE_MANAGER`. Guard/visibilidade usa authorities carregadas por `/me` e falha fechada se indisponível. API continua sendo autoridade final; FINANCE não aparece na allowlist.
 
@@ -70,7 +70,7 @@ Rotas a acrescentar em `app.routes.ts`: `/catalog/products`, `/catalog/products/
 
 ## 5. Evoluções necessárias no backend
 
-1. Precisão integral exige contrato decimal string e migração/versionamento compatível, atualização de OpenAPI e todos os consumidores. Java `BigDecimal`, validações e NUMERIC podem permanecer; adicionar testes Jackson de tipos/round-trip incluindo máximo e escala.
+1. O contrato v2 string, DTOs próprios, validação, conversão direta a `BigDecimal` e response com duas casas já existem no backend. Angular data access e modelos agora consomem v2; manter testes de contrato e transporte sem conversão monetária.
 2. `Pageable` não define `size` máximo nem allowlist de sort no controller. Para limitar carga e superfície, avaliar tamanho máximo explícito e ordenações suportadas, retornando 400 previsível para valor inválido. Até então UI envia apenas size 20 e `name,asc`.
 3. Se número/volume de categorias crescer, adicionar endpoint/filtros de categoria ativa com pesquisa ou paginação apropriada para seletor. Atual serviço de categorias não filtra.
 4. Respostas de conflito usam `detail` textual. Para erros estáveis por campo, considerar códigos Problem Details como `SKU_ALREADY_EXISTS` e `CATEGORY_INACTIVE`; não é requisito para a UI inicial.
@@ -80,19 +80,19 @@ Não é necessária evolução de authorities para a tela: controller já restri
 
 ## 6. Plano incremental
 
-1. Confirmar decisão de contrato monetário e plano de compatibilidade/versionamento; não começar formulário que prometa fidelidade integral antes disso.
+1. **[Concluída nesta etapa]** Migrar modelos e `ProductApiService` para API v2, mantendo `CategoryApiService` na v1; cobrir URL, query params, bodies string, 204 e erros HTTP.
 2. Construir listagem standalone, filtros reais, paginação no servidor, estados e guards; cobrir serviço e componente.
 3. Implementar carregamento e seletor de categoria, incluindo preservação da categoria inativa já associada.
 4. Implementar cadastro/edição com validações de SKU/nome/categoria/preço e tratamento de 400/401/403/404/409.
-5. Implementar desativação lógica com confirmação e resposta 204.
-6. Integrar contrato monetário decidido, revisar modelos e OpenAPI/consumidores, executar lint/testes/build já existentes e smoke autenticado com papéis adequados.
+5. Implementar desativação lógica com confirmação e resposta 204 na interface.
+6. Implementar apresentação/formatação BRL exata na UI, sem conversão para ponto flutuante, e executar testes/build/smoke autenticado com papéis adequados.
 
 ## 7. Plano de testes
 
-- **API Angular:** URL, filtros `name`, `sku`, `categoryId`, `active`, omissão de opcionais vazios, combinações, paginação zero-based, `size`, `sort=name,asc`; validar resposta PageResponse e 400/401/403/404/409.
+- **API Angular:** URL `/api/v2/products`, filtros `name`, `sku`, `categoryId`, `active`, omissão de opcionais vazios, combinações, paginação zero-based, `size`, `sort=name,asc`; validar resposta PageResponse e 400/401/403/404/409. Preço em respostas e request bodies permanece string, incluindo `999999999999.99`.
 - **Lista:** filtros combinados e reset para página zero; navegação anterior/próxima, totais, vazio, loading, retry, erro e categoria exibida. Confirmar que filtro “todos” omite `active`.
 - **Formulário:** GET de edição; POST e PUT com DTO completo; normalização/trim de SKU, required, branco, maxLength 64, nome 160, descrição 2000; SKU duplicado/409; categoria obrigatória, ativa para nova associação e preservada inativa para associação existente.
-- **Preço:** 0.00, valores com duas casas e vírgula BR, ausência de arredondamento; rejeitar mais de duas casas, negativo, excesso de dígitos e valor acima de `999999999999.99`; máximo e valor adjacente válido/ inválido conforme escala. Testar ida e volta JSON sem converter por `number` após contrato string; testar que formatação exibida não altera payload.
+- **Preço na camada HTTP:** transportar strings como `0.01`, `10.99` e `999999999999.99` sem conversão; confirmar round-trip exato nos modelos/serviço. Formato pt-BR, validação de entrada e apresentação ficam para a etapa de formulários.
 - **Desativação:** confirmação cancelada não chama serviço; confirmação chama DELETE; resposta 204 vazio aceita; estado é recarregado/inativo; não há ação de reativação.
 - **Permissões:** ADMIN/MANAGER leem e escrevem; SALES/STOCK_OPERATOR leem sem controles de escrita; FINANCE e usuário sem role não acessam rota; `/me` indisponível falha fechado; backend retorna 403 em tentativas proibidas. Esconder botão não substitui teste da API.
 
@@ -100,16 +100,16 @@ Não é necessária evolução de authorities para a tela: controller já restri
 
 1. Leitores autorizados consultam lista e detalhe; perfis sem leitura são barrados por guard e API.
 2. Lista combina somente filtros reais e pagina no servidor, preservando totalizadores e estado dos filtros.
-3. ADMIN/MANAGER criam/atualizam usando todos e somente os campos de `ProductRequest`; SKU/name refletem a resposta normalizada.
+3. ADMIN/MANAGER criam/atualizam usando todos e somente os campos de `ProductV2Request`; SKU/name refletem a resposta normalizada e preço mantém tipo string.
 4. Categoria inativa não pode ser nova associação; edição pode manter somente o vínculo inativo corrente.
-5. Preços BRL são exibidos corretamente e, após migração contratual, preservam cada centavo até o máximo do NUMERIC(14,2), sem arredondamento silencioso.
+5. O transporte v2 mantém cada centavo até o máximo de `NUMERIC(14,2)` sem conversão ou arredondamento. A exibição BRL será aceita na etapa visual.
 6. Desativação é lógica, confirma intenção, trata 204 sem corpo e não oferece exclusão permanente ou reativação.
 7. Loading, vazio, erros HTTP e falhas de rede têm resposta acessível, sem apagar valores digitados em falha de gravação.
 8. Testes automatizados cobrem paginação/filtros, criação/edição, validações, preço e limite, desativação, 204 e permissões.
 
 ## 9. Riscos e decisões pendentes
 
-- **Contrato v1 monetário:** escolher migração versionada string decimal; compatibilidade com consumidores atuais precisa ser inventariada. Enquanto number permanecer, precisão integral no browser não pode ser garantida.
+- **Contrato v1:** permanece ativo e numérico para clientes existentes. O frontend deste catálogo usa v2; não misturar modelos v1 e v2 no mesmo serviço.
 - **Categorias inativas:** associação atual pode permanecer na edição. Confirmar texto/UX e estratégia de carregamento quando houver grande volume.
 - **Tamanho/sort:** backend hoje não limita size nem restringe propriedade de ordenação; decidir limites e allowlist.
 - **Reativação:** sem endpoint e fora do escopo; requer decisão de domínio/API futura.
@@ -123,6 +123,7 @@ Não é necessária evolução de authorities para a tela: controller já restri
 - `apps/web/src/app/catalog/data-access/product-api.service.ts`
 - `apps/web/src/app/catalog/data-access/category-api.service.ts`
 - `apps/web/src/app/catalog/data-access/catalog-api.utils.ts`
+- `apps/web/src/app/catalog/data-access/product-api.service.spec.ts`
 - `apps/web/src/app/catalog/categories/category-access.guard.ts`
 - `apps/web/src/app/catalog/categories/category-list.component.ts` e `category-form.component.ts`
 - `apps/web/src/app/app.routes.ts` e `apps/web/src/app/app.component.ts`

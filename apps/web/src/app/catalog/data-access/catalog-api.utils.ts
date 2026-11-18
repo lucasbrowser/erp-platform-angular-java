@@ -10,6 +10,10 @@ export function catalogResourceUrl(
   return `${API_BASE_URL}/v1/${resource}`;
 }
 
+export function catalogProductV2Url(): string {
+  return `${API_BASE_URL}/v2/products`;
+}
+
 export function pageableHttpParams(query: PageableQuery): HttpParams {
   let params = new HttpParams();
 

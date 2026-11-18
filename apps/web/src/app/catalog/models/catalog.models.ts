@@ -17,15 +17,14 @@ export interface CategoryWriteRequest {
 export type CreateCategoryRequest = CategoryWriteRequest;
 export type UpdateCategoryRequest = CategoryWriteRequest;
 
-/** A product returned by the catalog API. Price is the JSON number emitted by BigDecimal. */
+/** A product returned by the products v2 API. Monetary values remain decimal strings. */
 export interface Product {
   id: string;
   sku: string;
   name: string;
   description: string | null;
   categoryId: string;
-  /** JavaScript number cannot exactly represent every decimal in the NUMERIC(14,2) range. */
-  price: number;
+  price: string;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -37,8 +36,8 @@ export interface ProductWriteRequest {
   name: string;
   description?: string | null;
   categoryId: string;
-  /** Pass through as supplied; this HTTP layer performs no conversion or rounding. */
-  price: number;
+  /** Canonical decimal string (for example, "150.50"); never convert to number. */
+  price: string;
 }
 
 export type CreateProductRequest = ProductWriteRequest;

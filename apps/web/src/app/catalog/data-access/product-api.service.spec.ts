@@ -7,7 +7,7 @@ import { TestBed } from "@angular/core/testing";
 import { firstValueFrom } from "rxjs";
 import { ProductApiService } from "./product-api.service";
 
-const PRODUCT_URL = "http://localhost:8082/api/v1/products";
+const PRODUCT_URL = "http://localhost:8082/api/v2/products";
 const PRODUCT_ID = "2b4adbd6-53ca-47c7-90f9-e17c80f03a9a";
 const CATEGORY_ID = "8fb0b316-2f89-4cf2-a80b-0ed939615607";
 
@@ -103,19 +103,19 @@ describe("ProductApiService", () => {
       name: "Parafuso",
       description: null,
       categoryId: CATEGORY_ID,
-      price: 12.5,
+      price: "999999999999.99",
       active: true,
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
-    await getResponse;
+    await expect(getResponse).resolves.toMatchObject({ price: "999999999999.99" });
 
     const body = {
       sku: "AB-120",
       name: "Parafuso",
       description: null,
       categoryId: CATEGORY_ID,
-      price: 12.5,
+      price: "999999999999.99",
     };
     const createResponse = firstValueFrom(service.create(body));
     const createRequest = http.expectOne(PRODUCT_URL);
@@ -131,7 +131,7 @@ describe("ProductApiService", () => {
       },
       { status: 201, statusText: "Created" },
     );
-    await createResponse;
+    await expect(createResponse).resolves.toMatchObject({ price: body.price });
 
     const updateResponse = firstValueFrom(service.update(PRODUCT_ID, body));
     const updateRequest = http.expectOne(`${PRODUCT_URL}/${PRODUCT_ID}`);
@@ -144,7 +144,7 @@ describe("ProductApiService", () => {
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-02T00:00:00Z",
     });
-    await updateResponse;
+    await expect(updateResponse).resolves.toMatchObject({ price: body.price });
 
     let completed = false;
     service.deactivate(PRODUCT_ID).subscribe(() => (completed = true));

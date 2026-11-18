@@ -1,6 +1,6 @@
 # SDD — Evolução do contrato monetário
 
-**Status:** API v2 de produtos implementada em `/api/v2/products`; v1 permanece numérica e inalterada. Frontend ainda não migrado. Esta atualização registra o estado do código.
+**Status:** API v2 de produtos implementada e camada de dados/modelos Angular migrada para `/api/v2/products`. A v1 permanece numérica e inalterada. Formulários e apresentação monetária Angular ainda não implementados.
 
 ## 1. Objetivo e decisão
 
@@ -16,17 +16,18 @@ O rastreio integral de `BigDecimal`, `NUMERIC`, `price`, `total`, `amount` e ter
 
 | Camada | Local encontrado | Representação/uso atual | Impacto |
 |---|---|---|---|
-| Request API | `ProductRequest` | `BigDecimal price`; `@NotNull`, `@DecimalMin("0.00")`, `@Digits(integer=12,fraction=2)` | v1 recebe número JSON em testes; v2 deve aceitar string decimal com validação explícita e erro 400 para formato/escala inválidos. |
+| Request API | `ProductRequest` e `ProductV2Request` | v1 recebe número JSON; v2 recebe string validada por tipo JSON estrito e pattern canônico de duas casas | v1 preservada; v2 converte string diretamente a BigDecimal. |
 | Serviço | `ProductService` | Passa `request.price()` diretamente ao domínio em create/update | Preservar valor exato; sem aritmética ou arredondamento encontrados. |
 | Domínio | `Product` | Campo/getter `BigDecimal price` | Continua BigDecimal; comparar por valor numérico com `compareTo`, não por `equals`, quando escala puder diferir. |
-| Response API | `ProductResponse` | Record contém `BigDecimal price` | Jackson hoje escreve token JSON numérico; v2 precisa expor decimal string canônica. |
+| Response API | `ProductResponse` e `ProductV2Response` | v1 serializa número; v2 serializa string `toPlainString()` após escala 2 com `RoundingMode.UNNECESSARY` | Não há arredondamento na resposta v2. |
 | Banco | `V2__catalog_categories_and_products.sql` | `erp.products.price NUMERIC(14,2)`, `NOT NULL`, `CHECK (price >= 0)` | Precisão/escala adequadas; não requer mudança de schema para alterar representação HTTP. |
 | API v2 | `catalog/api/v2/ProductV2Controller`, `ProductV2Request`, `ProductV2Response` | Endpoints equivalentes a produtos v1; request recebe string canônica e converte por `new BigDecimal(String)`, response usa `setScale(2, UNNECESSARY).toPlainString()` | Novo contrato textual sem alterar DTOs ou serialização v1. |
 | Testes API | `CatalogIntegrationTest` | Espera `$.price` numérico, constrói JSON numérico; testes de constraint usam `BigDecimal` | Manter expectativas de v1; adicionar testes separados de v2, limites e serialização textual. |
-| OpenAPI | `docs/api-contract.yaml` | Schemas ProductRequest/ProductResponse declaram preço numérico | Manter schemas v1 e adicionar paths/schemas v2 com `type: string`, formato/padrão/limites explícitos. |
-| Modelo Angular | `catalog.models.ts` | `Product.price` e `ProductWriteRequest.price` são `number` | v1 não garante fidelidade na faixa inteira; v2 deve usar string sem conversão intermediária para number. |
-| Serviço Angular | `ProductApiService` | POST/PUT passa request sem conversão; GET interpreta JSON pelo HttpClient | Criar cliente/DTO v2 ou migração explícita com tipos separados; não reinterpretar silenciosamente v1. |
-| Interface Angular | Catálogo de produto ainda não tem formulário | Sem parser/formatação monetária implementados | Campo textual decimal e formatter de apresentação exato ao consumir v2. |
+| OpenAPI | `docs/api-contract.yaml` | v1 declara preço numérico; v2 declara string com pattern decimal e limite de 12 dígitos inteiros | Os contratos permanecem separados por versão. |
+| Modelo Angular | `catalog.models.ts` | `Product.price` e `ProductWriteRequest.price` são `string` | Transporte tipado compatível com v2; não usar `number` em valor monetário. |
+| Serviço Angular | `ProductApiService` | GET/POST/PUT/DELETE usam `/api/v2/products`; request é enviado sem conversão | Contrato v2 explícito; `CategoryApiService` continua em `/api/v1/categories`. |
+| Teste Angular | `product-api.service.spec.ts` | Verifica URL v2, filtros/paginação, bodies string, preço máximo, 204 e propagação de erro HTTP | Sem dependência de conversão monetária para number. |
+| Interface Angular | Catálogo de produto ainda não tem formulário | Sem parser/formatação monetária implementados | Formulário e formatter exato continuam fora desta etapa. |
 | Pedidos | Nenhum arquivo correspondente encontrado em `apps/api`/`apps/web` | Nenhum modelo/endpoint/cálculo de pedido presente | Escopo futuro; preço unitário e total devem ser string no wire e `BigDecimal`/NUMERIC internamente. |
 
 `docs/specs/products-angular.md` e `docs/specs/catalog-angular.md` já registram a perda potencial em JavaScript number e recomendam string decimal com evolução compatível/versionada. Esta decisão consolida a recomendação também para domínios monetários futuros.
@@ -86,9 +87,11 @@ A é a escolha aplicada e garante opt-in explícito. Alternativa B não foi usad
 
 ### Tarefa 5 — Atualização dos modelos e serviços Angular
 
-- Criar tipos v2 para produtos com preço string; migrar `ProductApiService` para base/path v2 explicitamente sem mudar tipos de v1 usados por outros consumidores.
+- **[Concluído nesta etapa]** Tipar os modelos `Product`/`ProductWriteRequest` com preço string e migrar `ProductApiService` para `/api/v2/products`, sem afetar categorias.
 - Manter o controle do formulário como texto decimal, com validação local coerente; serializar string canônica e exibir resposta sem converter a number.
 - Implementar formatter `pt-BR` sem perda, separando representação e wire. Não adicionar biblioteca até avaliar se formatter/aritmética interna simples atende; se dependência for necessária, propor e testar separadamente.
+
+**Estado:** modelos e serviço HTTP foram migrados nesta etapa; controles de formulário e formatter permanecem pendentes.
 
 ### Tarefa 6 — Testes de integração
 
@@ -102,7 +105,7 @@ A é a escolha aplicada e garante opt-in explícito. Alternativa B não foi usad
 - Alinhar DTOs, controllers, testes de contrato e URLs documentadas (inclusive divergência localhost 8080/8082 já registrada nas specs de catálogo).
 - Atualizar `products-angular.md`, `catalog-angular.md`, documentação de onboarding e exemplos para diferenciar v1/v2 e registrar sequência de migração.
 
-**Estado nesta implementação:** tarefas 1–3, 6 (backend/controller e segurança) e contrato OpenAPI de produtos v2 foram implementados. A v2 usa controller/DTOs próprios, reutiliza `ProductService`, entidade e tabela, e continua sob autenticação `/api/**` e authorities iguais às da v1. A Tarefa 5 (Angular) e migração dos clientes permanecem pendentes; atualização cruzada das demais specs também permanece.
+**Estado atualizado:** tarefas 1–3, 6 (contrato/backend e segurança), OpenAPI de produtos v2 e parte de data access da Tarefa 5 foram implementados. `ProductApiService` chama `/api/v2/products`; modelos `Product` e `ProductWriteRequest` usam `price: string`; query parameters, bodies e erros HTTP continuam no serviço existente. `catalogProductV2Url()` escolhe a versão para produtos, enquanto categorias seguem em v1. Não foram implementados formulários, componentes de produto, parser de entrada ou formatação BRL. A spec `catalog-angular.md` ainda contém a fotografia anterior da camada de dados e precisa ser sincronizada em etapa documental própria.
 
 ## 6. Critérios de aceite
 

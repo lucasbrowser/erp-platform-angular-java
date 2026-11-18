@@ -9,14 +9,14 @@ import {
 } from "../models/catalog.models";
 import {
   appendNonEmptyParam,
-  catalogResourceUrl,
+  catalogProductV2Url,
   pageableHttpParams,
 } from "./catalog-api.utils";
 
 @Injectable({ providedIn: "root" })
 export class ProductApiService {
   private readonly http = inject(HttpClient);
-  private readonly url = catalogResourceUrl("products");
+  private readonly url = catalogProductV2Url();
 
   list(query: ProductListQuery = {}): Observable<PageResponse<Product>> {
     let params: HttpParams = pageableHttpParams(query);
