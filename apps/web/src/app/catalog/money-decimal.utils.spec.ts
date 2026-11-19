@@ -7,7 +7,10 @@ describe("money decimal utilities", () => {
     ["150,75", "150.75"],
     ["999999999999.99", "999999999999.99"],
   ])("canonicalizes %s as %s", (input, expected) => {
-    expect(canonicalMoneyInput(input)).toEqual({ value: expected, error: null });
+    expect(canonicalMoneyInput(input)).toEqual({
+      value: expected,
+      error: null,
+    });
   });
 
   it.each([

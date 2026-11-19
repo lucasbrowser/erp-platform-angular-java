@@ -11,7 +11,7 @@
   "scripts": {
     "start": "ng serve --host 127.0.0.1",
     "build": "ng build",
-    "test": "ng test",
+    "test": "ng test --watch=false",
     "lint": "eslint \"src/**/*.ts\" && prettier --check \"src/**/*.{ts,html,css}\" *.json *.js",
     "format": "prettier --write \"src/**/*.{ts,html,css}\" *.json *.js"
   },
