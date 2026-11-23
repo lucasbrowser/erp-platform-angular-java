@@ -32,10 +32,21 @@ class CustomerPersistenceIntegrationTest {
             assertThat(connection.getMetaData().getDatabaseProductName()).isEqualTo("PostgreSQL");
         }
 
-        Integer successfulV4Migrations = jdbc.queryForObject(
-                "SELECT count(*) FROM flyway_schema_history WHERE version = '4' AND success = true",
+        Integer successfulV5Migrations = jdbc.queryForObject(
+                "SELECT count(*) FROM flyway_schema_history WHERE version = '5' AND success = true",
                 Integer.class);
-        assertThat(successfulV4Migrations).isEqualTo(1);
+        assertThat(successfulV5Migrations).isEqualTo(1);
+
+        String countryCodeType = jdbc.queryForObject(
+                "SELECT data_type FROM information_schema.columns "
+                        + "WHERE table_schema = 'erp' AND table_name = 'customers' AND column_name = 'country_code'",
+                String.class);
+        Integer countryCodeLength = jdbc.queryForObject(
+                "SELECT character_maximum_length FROM information_schema.columns "
+                        + "WHERE table_schema = 'erp' AND table_name = 'customers' AND column_name = 'country_code'",
+                Integer.class);
+        assertThat(countryCodeType).isEqualTo("character varying");
+        assertThat(countryCodeLength).isEqualTo(2);
     }
 
     @Test

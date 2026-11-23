@@ -26,7 +26,7 @@ public class CustomerAddress {
     @Column(name = "state", length = 64)
     private String state;
 
-    @Column(name = "country_code", columnDefinition = "CHAR(2)")
+    @Column(name = "country_code", length = 2)
     private String countryCode;
 
     protected CustomerAddress() { }
