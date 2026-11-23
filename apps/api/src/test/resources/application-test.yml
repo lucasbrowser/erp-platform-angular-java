@@ -1,0 +1,7 @@
+# Testes de integração exigem conexão explícita a um PostgreSQL exclusivo para testes.
+# Não definir fallback para DATABASE_URL ou para o banco de desenvolvimento.
+spring:
+  datasource:
+    url: ${TEST_DATABASE_URL}
+    username: ${TEST_DATABASE_USERNAME}
+    password: ${TEST_DATABASE_PASSWORD}
