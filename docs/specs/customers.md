@@ -1,6 +1,6 @@
 # C-01 — Especificação do módulo de clientes
 
-**Status:** proposta para revisão; nenhuma implementação foi iniciada.
+**Status:** regras funcionais e decisões técnicas consolidadas para revisão; nenhuma implementação foi iniciada.
 
 ## 1. Objetivo e escopo
 
@@ -8,7 +8,7 @@ Especificar o cadastro mestre de clientes para uso futuro em vendas, seguindo o 
 
 Inclui cadastro de pessoa física e jurídica, consulta, pesquisa paginada, atualização completa e desativação lógica. Não inclui pedidos, emissão fiscal, consulta externa de CPF/CNPJ, integração com Receita Federal, cobrança, importação em massa ou armazenamento de documentos anexos.
 
-A especificação não cria endpoint ou permissão em funcionamento. As propostas abaixo precisam ser aprovadas antes da implementação.
+A especificação não cria endpoint ou permissão em funcionamento. As regras funcionais e técnicas consolidadas abaixo foram aprovadas para orientar a implementação. Permanecem explicitamente pendentes apenas os pontos indicados na seção 12, incluindo os que dependem do módulo `sales` ou de avaliação jurídica.
 
 ## 2. Padrões existentes observados
 
@@ -28,7 +28,7 @@ A especificação não cria endpoint ou permissão em funcionamento. As proposta
 
 1. Cadastrar PF e PJ em um único recurso, distinguindo-as por `personType`.
 2. PF informa nome e CPF; PJ informa razão social e CNPJ. Nome fantasia é opcional para PJ.
-3. Permitir inscrição estadual opcional para PJ, inclusive indicação textual de isenção se o negócio aprovar. Não aplicável a PF.
+3. Permitir inscrição estadual opcional para PJ. Não aplicável a PF; não há regra especial de isenção ou produtor rural no MVP.
 4. Permitir e-mail e telefone opcionais.
 5. Permitir endereço de cobrança/contato opcional estruturado.
 6. Consultar cliente por UUID e listar com paginação, pesquisa e filtro de situação/tipo.
@@ -38,59 +38,59 @@ A especificação não cria endpoint ou permissão em funcionamento. As proposta
 
 ### Dados opcionais avaliados
 
-| Campo | Proposta inicial | Justificativa / decisão pendente |
+| Campo | Decisão para o MVP | Observação |
 |---|---|---|
-| CEP | Incluir, opcional, texto | Útil para faturamento/entrega; não validá-lo como número. Definir se será normalizado para dígitos ou aceitará hífen. |
+| CEP | Incluir, opcional, texto | CEP brasileiro é normalizado para oito dígitos, sem máscara; não validá-lo como número. |
 | Logradouro | Incluir, opcional | Endereço incompleto é permitido para clientes prospectivos. |
 | Número | Incluir, opcional, texto | Texto aceita `S/N`, blocos e formatos não numéricos. |
 | Complemento | Incluir, opcional | Campo livre curto. |
 | Bairro | Incluir, opcional | Usado em entrega e identificação. |
 | Cidade | Incluir, opcional | Informação operacional e futura venda. |
-| Estado/UF | Incluir, opcional | Texto; validar UF brasileira somente se a primeira versão for exclusivamente nacional. |
-| País | Incluir, opcional | Definir código ISO 3166-1 alpha-2 ou nome; recomenda-se código alpha-2, sem default implícito até decisão. |
-| Observações internas | Adiar da primeira versão, salvo aprovação | Podem conter dados pessoais/sensíveis; exigem definição de visibilidade, retenção, auditoria e limite de tamanho. |
+| Estado/UF | Incluir, opcional | Texto; validação estadual complexa fica fora do MVP. |
+| País | Incluir no objeto de endereço como `countryCode` opcional na entrada | Usar ISO 3166-1 alpha-2; aplicar `BR` quando um endereço informado não trouxer país. Isso não habilita clientes estrangeiros. |
+| Observações internas | Fora do MVP | Não haverá campo de observações internas nesta versão. |
 
-**Decisão funcional sugerida:** manter endereço como bloco opcional no cadastro, sem exigir que todos os seus campos sejam preenchidos. O caso de uso de vendas deverá definir endereço de entrega e eventual snapshot histórico separadamente.
+**Regra consolidada:** a API recebe e responde um objeto opcional `address`, com `postalCode`, `street`, `number`, `complement`, `neighborhood`, `city`, `state` e `countryCode`. Todos os campos são opcionais. Os valores são persistidos como colunas de `erp.customers`, sem tabela separada de endereços. Se todos os campos de endereço estiverem ausentes, a resposta traz `address: null`. Quando há endereço informado e `countryCode` não é enviado, usar `BR`. CEP é string; para CEP brasileiro, remover a máscara e persistir oito dígitos. Não consultar serviços externos de CEP nem validar endereço externamente. Regras de endereço de entrega e snapshot histórico continuam no SDD de `sales`.
 
-## 4. Regras de negócio propostas
+## 4. Regras de negócio consolidadas
 
 ### 4.1 Tipo de pessoa e campos
 
-- `personType` obrigatório, enum estável `INDIVIDUAL` ou `COMPANY`.
-- `name` obrigatório, após trim e não vazio, até 160 caracteres. Para PF é o nome civil; para PJ é a razão social.
-- `tradeName` opcional e até 160 caracteres; recomendado somente para PJ. Rejeitar valor não branco para PF ou ignorar? Recomenda-se rejeitar como erro de validação para evitar dado contraditório.
-- `document` obrigatório; CPF para PF e CNPJ para PJ. Armazenar e transportar como string canônica composta apenas de dígitos, respectivamente 11 e 14 posições. Nunca usar tipo numérico, pois documentos podem começar com zero.
-- `stateRegistration` opcional e somente aplicável a PJ. A regra para contribuinte isento (texto sentinela, boolean ou ausência) requer decisão; não introduzir um formato sem aprovação.
-- `email`, `phone` e endereço são opcionais; quando fornecidos, devem ser não brancos e ter formato/tamanho razoável validado no servidor. Não exigir e-mail ou telefone como identidade do cliente.
-- Documento de PF/PJ brasileiro é a única modalidade especificada. Cliente estrangeiro sem CPF/CNPJ está fora do escopo inicial e exige decisão antes de modelar exceções.
+- `personType` obrigatório, enum estável `INDIVIDUAL` (PF) ou `COMPANY` (PJ).
+- `name` obrigatório, após trim e não vazio, até 160 caracteres. Para PF representa nome civil; para PJ, razão social.
+- `tradeName` opcional, até 160 caracteres e exclusivo de `COMPANY`; para `INDIVIDUAL` deve ser ausente ou nulo. O backend rejeitará valor informado para PF.
+- `document` obrigatório e sempre string: CPF para `INDIVIDUAL`, CNPJ para `COMPANY`. Preservar zeros iniciais e não converter para tipo numérico.
+- `stateRegistration` opcional e exclusiva de `COMPANY`. Não implementar validação estadual complexa, regra especial de isenção ou tratamento especial de produtor rural no MVP.
+- E-mail e telefone são opcionais. Endereço também é opcional e não exige preenchimento de todos os seus campos. Observações internas não fazem parte do MVP.
+- Clientes estrangeiros estão fora do MVP: não aceitar passaporte nem criar identificador/documento alternativo; CPF ou CNPJ permanece obrigatório.
 
 ### 4.2 Validação e normalização de CPF/CNPJ
 
-- Na entrada, aceitar somente string com dígitos ou máscara brasileira conhecida (CPF `000.000.000-00`; CNPJ `00.000.000/0000-00`). Remover apenas pontuação prevista e espaços externos; rejeitar letras e caracteres inesperados. Persistência e respostas usam dígitos sem máscara.
-- Validar comprimento e dígitos verificadores, rejeitando sequências repetidas inválidas. Implementar algoritmo local puro; não fazer consulta externa.
-- A regra de CNPJ alfanumérico futuro não integra esta proposta; a adoção deve ser revisada quando o escopo nacional/legislação aplicável exigir.
-- A validação deve ocorrer no backend independentemente do frontend. Respostas não devem depender de um texto de erro específico para determinar a lógica.
+- CPF possui 11 dígitos numéricos. CNPJ possui 14 posições e deve suportar tanto o formato numérico legado quanto o formato alfanumérico vigente.
+- Aceitar os formatos sem máscara e as máscaras oficiais aplicáveis; remover as máscaras na normalização. Persistir e transportar documento como string canônica sem máscara. Para CNPJ alfanumérico, normalizar letras para maiúsculas de forma consistente, preservar letras e números nas posições correspondentes e nunca converter letras em números. A forma canônica final deve seguir a documentação oficial vigente.
+- Validar formato e dígitos verificadores no backend, de acordo com a documentação oficial vigente da Receita Federal para CPF e CNPJ, incluindo o CNPJ alfanumérico. Esta especificação não descreve nem inventa algoritmos; a implementação deverá consultar e referenciar a documentação oficial aplicável no momento do desenvolvimento.
+- Não consultar a Receita Federal nem qualquer serviço externo. A validação local não confirma situação cadastral ou titularidade.
+- A validação deve ocorrer no backend independentemente do frontend. Respostas não devem depender de texto interno de erro para determinar lógica.
 
 ### 4.3 Unicidade e duplicidade
 
-- Proposta: `document` globalmente único após normalização, independentemente do tipo de pessoa e da situação ativa.
-- Inclusão/alteração duplicada retorna `409 Conflict` em Problem Details, sem merge silencioso e sem reativação automática.
-- Mudança do próprio documento para o mesmo valor normalizado é permitida. Mudança para documento de outro registro, mesmo inativo, retorna 409.
-- Restrição única no PostgreSQL é necessária além da consulta preventiva no service para cobrir concorrência.
-- **Aprovação necessária:** confirmar unicidade global incluindo inativos e política de reuso de documento após encerramento/erro cadastral. Recomendação: não permitir reuso; corrigir o cadastro existente por fluxo autorizado/auditado.
+- `document` é globalmente único pela representação canônica normalizada, incluindo clientes ativos e inativos. A comparação e a constraint usam exatamente essa forma; não é permitido reutilizar documento.
+- Inclusão/alteração duplicada retorna `409 Conflict` em Problem Details, sem merge silencioso nem reativação automática.
+- O cliente pode manter o próprio documento ou alterá-lo se nenhum outro registro possuir o valor normalizado. Documento pertencente a outro registro, inclusive inativo, retorna 409.
+- O banco garante unicidade por constraint/índice único sobre o valor canônico, além da verificação na aplicação para produzir erro de domínio. Isso também protege contra concorrência.
 
 ### 4.4 Atualização, situação e vendas futuras
 
-- PUT substitui os campos editáveis integralmente; opcionais omitidos/null limpam o valor. Para evitar ambiguidade, o contrato deverá exigir todos os campos editáveis, permitindo `null` só nos opcionais.
+- PUT substitui os campos editáveis integralmente; opcionais omitidos/null limpam o valor. O contrato deverá exigir todos os campos editáveis, permitindo `null` somente nos opcionais.
 - Atualização não altera `active`, `id`, `createdAt` nem `updatedAt`; o timestamp de atualização é mantido pelo lifecycle JPA, conforme entidades do catálogo.
 - DELETE significa desativar, é idempotente para registro existente e retorna 204; UUID inexistente retorna 404, como no catálogo.
-- Não propor reativação no endpoint de atualização. Caso reativação seja necessária, criar operação explícita e autorizada em decisão posterior, sem inferi-la de PUT.
-- Cliente inativo continua consultável para histórico, mas deve ser inelegível para criar/confirmar novas vendas. Momento da checagem (criação, confirmação ou ambos), tratamento de rascunhos já existentes e exceção para ajustes históricos devem ser definidos no SDD de vendas.
-- Futuras vendas devem manter FK para o cliente e não podem ser apagadas ao desativar. Definir se o pedido guarda snapshot de razão/nome, documento e endereço no momento da venda para preservar evidência histórica.
+- Não haverá reativação no MVP. PUT não altera `active`; não é permitido reativar implicitamente por atualização. Se necessária futuramente, reativação será operação explícita e autorizada.
+- Cliente inativo permanece consultável para histórico e não pode ser usado em novas vendas. As regras de validação da situação na criação e confirmação de vendas serão especificadas no módulo `sales`.
+- O tratamento de dados cadastrais congelados em pedidos (snapshot histórico) será definido no módulo `sales`.
 
 ### 4.5 Dados pessoais
 
-CPF/CNPJ, contato e endereço são dados pessoais/comerciais. Restringir acesso conforme finalidade, evitar colocar documento completo em logs e erros, não expor campos além do necessário e revisar auditoria/retention. Requisitos LGPD, mascaramento em tela, exportação e anonimização exigem avaliação de negócio/jurídica antes de produção.
+CPF/CNPJ, contato e endereço são dados pessoais/comerciais. Restringir acesso conforme a matriz da seção 7, evitar colocar documento completo em logs e erros e aplicar minimização por perfil no backend. No MVP, persistir somente `createdAt` e `updatedAt`: não criar histórico completo de alterações, tabela de auditoria, `createdBy` ou `updatedBy`. Auditoria completa pode ser evolução futura. Retenção e descarte, exportação, anonimização e auditoria completa ficam fora do escopo de implementação do módulo `customers`. Requisitos LGPD devem ser definidos e avaliados antes da entrada em produção.
 
 ## 5. Modelo de dados proposto
 
@@ -102,28 +102,28 @@ Tabela proposta: `erp.customers`, migration futura `V4__customers.sql` somente s
 | `person_type` | `VARCHAR(16)` | NOT NULL; `INDIVIDUAL` ou `COMPANY`; check constraint. |
 | `name` | `VARCHAR(160)` | NOT NULL, trim, não vazio. Nome civil ou razão social conforme tipo. |
 | `trade_name` | `VARCHAR(160)` | NULL; aplicável somente a PJ. |
-| `document` | `VARCHAR(14)` | NOT NULL, dígitos canônicos; unique global. Evitar `CHAR`, que pode introduzir padding. |
-| `state_registration` | `VARCHAR(32)` | NULL; aplicável a PJ, sujeito à política de isenção/UF. |
+| `document` | `VARCHAR(14)` | NOT NULL; comporta 11 dígitos do CPF ou 14 posições do CNPJ numérico/alfanumérico; persistir string canônica sem máscara e com letras normalizadas para maiúsculas; unique global. Evitar `CHAR`, que pode introduzir padding. |
+| `state_registration` | `VARCHAR(32)` | NULL; somente PJ; sem regra especial de isenção/produtor rural ou validação estadual complexa no MVP. |
 | `email` | `VARCHAR(254)` | NULL; tamanho compatível com endereços usuais e validação de formato básica. |
 | `phone` | `VARCHAR(32)` | NULL; texto para preservar `+`, DDI e formatação de apresentação. |
-| `postal_code` | `VARCHAR(16)` | NULL; política de normalização pendente. |
+| `postal_code` | `VARCHAR(16)` | NULL; texto. Quando `country_code` for `BR`, armazenar CEP normalizado para oito dígitos, sem máscara. |
 | `street` | `VARCHAR(160)` | NULL. |
 | `number` | `VARCHAR(32)` | NULL; texto. |
 | `complement` | `VARCHAR(120)` | NULL. |
 | `neighborhood` | `VARCHAR(120)` | NULL. |
 | `city` | `VARCHAR(120)` | NULL. |
 | `state` | `VARCHAR(64)` | NULL; UF ou subdivisão, conforme escopo geográfico aprovado. |
-| `country_code` | `CHAR(2)` ou `VARCHAR(2)` | NULL; ISO alpha-2 somente se esse padrão for aprovado. |
+| `country_code` | `CHAR(2)` | NULL quando não houver endereço; quando endereço for informado, armazenar ISO 3166-1 alpha-2, com `BR` como padrão de entrada. |
 | `active` | `BOOLEAN` | NOT NULL DEFAULT TRUE. |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL; persistido em UTC, imutável. |
-| `updated_at` | `TIMESTAMPTZ` | NOT NULL; atualizado em alteração. |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL; persistido em UTC, imutável; exposto como `createdAt`. |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL; atualizado em alteração; exposto como `updatedAt`. |
 
-Não incluir `tenant_id`: MVP de empresa única (ADR-0001). Não criar tabela genérica de endereços, contatos ou observações sem requisito de múltiplos valores. Para pedidos, relacionamento futuro `sales_orders.customer_id UUID NOT NULL REFERENCES erp.customers(id)`; política de delete restrita e sem exclusão física. FK/snapshot devem ser especificados junto ao módulo de vendas, sem acoplamento interno prematuro entre `sales` e internals de `customers`.
+Não incluir `tenant_id`: MVP de empresa única (ADR-0001). Não criar tabela separada de endereços nem tabela genérica de contatos ou observações sem requisito de múltiplos valores. As oito propriedades do objeto `address` são armazenadas em colunas da própria `erp.customers`. Se os oito campos estiverem ausentes ou nulos, manter todas as colunas de endereço nulas e responder `address: null`. Se qualquer campo for informado, manter o objeto; quando `countryCode` estiver ausente, aplicar/persistir `BR`. Para CEP com país `BR`, armazenar oito dígitos sem máscara; `postalCode` continua texto. Para pedidos, relacionamento futuro `sales_orders.customer_id UUID NOT NULL REFERENCES erp.customers(id)`; política de delete restrita e sem exclusão física. FK/snapshot devem ser especificados junto ao módulo de vendas, sem acoplamento interno prematuro entre `sales` e internals de `customers`.
 
 ### Constraints e índices propostos
 
-- PK em `id`; CHECK do enum e do comprimento/formato do documento segundo `person_type`; CHECK de `name = btrim(name)` e comprimento > 0; CHECK de campos exclusivamente PJ quando aplicável.
-- Índice único `uq_customers_document` em `document` canônico. Caso máscaras sejam persistidas (não recomendado), unique funcional na forma normalizada seria necessário.
+- PK em `id`; CHECK do enum, comprimento e formato básico do documento por tipo; CHECK de `name = btrim(name)` e comprimento > 0; CHECK de campos exclusivamente PJ quando aplicável. A validação dos dígitos verificadores segue a documentação oficial vigente e fica na aplicação, sem algoritmo inventado na especificação.
+- Índice único `uq_customers_document` sobre `document` canônico, igual à representação normalizada e persistida pela aplicação. Máscaras não são armazenadas; não usar conversão de letras para números.
 - Índice para listagem por situação e nome, sugestão `(active, lower(name))`; confirmar plano de consulta real e comportamento de ordenação/collation.
 - O índice unique de documento atende busca exata. Evitar índice em cada campo opcional sem evidência de consulta; filtros por tipo/situação podem exigir índices adicionais se volume justificar.
 - Índices, tamanho de campos e restrições devem ser validados em PostgreSQL/Flyway com testes de integração.
@@ -144,17 +144,18 @@ Não propor PATCH, endpoint de reativação, exclusão física, bulk ou sub-recu
 
 ### 6.1 Filtros, ordenação e paginação
 
-Proposta para `GET /customers`:
+Contrato consolidado para `GET /customers`:
 
-- `name`: contém, case-insensitive; aplicar trim e escape de `%`, `_` e `\\` como no service de produtos.
-- `document`: busca exata após normalização para dígitos; evitar busca parcial por documento como padrão por privacidade e seletividade.
-- `personType`: enum exato opcional.
-- `active`: boolean opcional; omitido inclui ativos e inativos, conforme catálogo.
-- `page`, `size`, `sort`: comportamento Spring Pageable, zero-based, tamanho padrão 20, máximo 100. Ordenação padrão sugerida `name,asc`.
-- Allowlist de ordenação recomendada: `name`, `document`, `personType`, `active`, `createdAt`, `updatedAt`; rejeitar propriedade desconhecida como 400. Hoje o catálogo entrega `Pageable` diretamente, e o limite global é 100; allowlist de cliente é uma recomendação adicional a confirmar.
-- `sort` usa formato Spring `campo,asc|desc` e pode ser repetido. Filtro alterado no frontend deve voltar à página zero.
+- `name`: busca parcial case-insensitive; aplicar trim e escapar `%`, `_` e `\\` para que sejam tratados como caracteres literais, seguindo o padrão do service de produtos.
+- `document`: busca exata após a mesma normalização canônica sem máscara usada na persistência (CPF numérico ou CNPJ alfanumérico em maiúsculas). Não oferecer busca parcial por CPF/CNPJ. FINANCE não pode filtrar por documento; aplicar a regra de perfil descrita na seção 7.
+- `personType`: filtro opcional por enum exato `INDIVIDUAL` ou `COMPANY`.
+- `active`: filtro opcional booleano. Quando omitido, a lista inclui clientes ativos e inativos.
+- `page`: zero-based; padrão 0. `size`: padrão 20, máximo 100.
+- `sort`: padrão `name,asc`. Aceitar múltiplos parâmetros `sort` no formato Spring `property,direction`.
+- Allowlist de propriedades para ordenação: `name`, `document`, `personType`, `active`, `createdAt`, `updatedAt`. Qualquer propriedade desconhecida deve resultar em `400 Bad Request`, sem repassar propriedade arbitrária ao `Pageable`.
+- A listagem retorna o `PageResponse<T>` adotado pelo catálogo. Alterar filtros no Angular reinicia a página para zero.
 
-Busca por documento deve ser restrita a perfis que tenham finalidade de consultar dados cadastrais. Avaliar mascaramento do documento em listagem (p.ex. últimos dígitos) e exposição integral apenas no detalhe, em vez de copiar automaticamente o comportamento simples do catálogo.
+As projeções de resposta e restrições de busca por perfil estão definidas na seção 7.
 
 ### 6.2 DTOs propostos
 
@@ -182,9 +183,9 @@ Busca por documento deve ser restrita a perfis que tenham finalidade de consulta
 }
 ```
 
-O exemplo é estrutural, não afirma que CPF/CNPJ literal é válido; payload real precisa passar algoritmo verificador. Decidir se endereço será objeto aninhado ou colunas expostas no DTO. Recomenda-se objeto `address` para semântica clara, persistido inicialmente como colunas simples na mesma tabela.
+Todos os campos dentro de `address` são opcionais. O objeto também pode ser omitido ou `null`; se não houver nenhum campo de endereço, a resposta retorna `address: null`. Se `address` for informado com algum campo diferente de `countryCode`, e `countryCode` estiver ausente, o backend assume `BR`. `postalCode` é string; CEP brasileiro é normalizado para oito dígitos sem máscara. Não há consulta externa de CEP nem validação externa do endereço. O exemplo é estrutural, não afirma que CPF/CNPJ literal é válido; payload real precisa passar validação oficial.
 
-`CustomerResponse` acrescenta `id`, `active`, `createdAt`, `updatedAt` aos campos de negócio. `document` retorna string canônica somente dígitos; apresentação mascarada pertence à UI. `address` pode ser `null` quando todos os campos estiverem ausentes, conforme decisão de contrato. Datas são ISO-8601 com UTC (`Instant`); IDs são UUID string padrão. Requests de atualização não incluem ID/situação/timestamps.
+`CustomerResponse` acrescenta `id`, `active`, `createdAt`, `updatedAt` aos campos de negócio. `document` é sempre string canônica sem máscara; CNPJ alfanumérico preserva letras, normalizadas para maiúsculas, sem conversão entre letras e números. As projeções por perfil, inclusive a minimização obrigatória de FINANCE, seguem a seção 7. `address` é `null` se todos os seus campos estiverem ausentes. Datas são ISO-8601 com UTC (`Instant`); IDs são UUID string padrão. Requests de atualização não incluem ID/situação/timestamps.
 
 ### 6.3 Códigos e erros
 
@@ -200,18 +201,18 @@ O exemplo é estrutural, não afirma que CPF/CNPJ literal é válido; payload re
 
 O backend continuará usando resource server OIDC/JWT, validação existente de issuer/audience/assinatura/expiração, authorities `ROLE_*`, CORS e deny-by-default. Não ampliar permissões globais nem tratar guard Angular como barreira de autorização. Aplicar método a método com `@PreAuthorize`, acompanhando a matriz aprovada.
 
-A política existente documenta a matriz geral como baseline, mas chama as permissões além do catálogo de pendentes. Matriz abaixo é proposta específica e requer aprovação de negócio:
+Matriz aprovada para o módulo de clientes:
 
 | Operação de clientes | ADMIN | MANAGER | SALES | STOCK_OPERATOR | FINANCE |
 |---|---:|---:|---:|---:|---:|
-| Listar/consultar | Sim | Sim | Sim | Não | Sim* |
-| Criar | Sim | Sim | Sim* | Não | Não |
-| Editar | Sim | Sim | Sim* | Não | Não |
-| Desativar | Sim | Sim | Não* | Não | Não |
+| Listar/consultar | Sim | Sim | Sim | Não | Sim (dados minimizados) |
+| Criar | Sim | Sim | Sim | Não | Não |
+| Editar | Sim | Sim | Sim | Não | Não |
+| Desativar | Sim | Sim | Não | Não | Não |
 
-`*` Decisão pendente. Recomendação: SALES consulta/cria/edita porque prepara vendas; permitir desativação apenas a ADMIN/MANAGER para evitar remoção operacional acidental. FINANCE consulta o mínimo necessário para faturamento/contas a receber, preferencialmente com documento minimizado; sem escrita. STOCK_OPERATOR não precisa de cadastro de clientes. ADMIN/MANAGER têm administração completa. A permissão de criar/editar por SALES e a extensão da leitura de FINANCE precisam ser aprovadas antes da configuração.
+ADMIN e MANAGER recebem os dados cadastrais completos e possuem acesso administrativo completo. SALES recebe os dados necessários à finalidade comercial aprovada e pode listar, consultar, criar e editar, mas não desativar. FINANCE tem leitura apenas, não pode filtrar por documento e nunca recebe CPF/CNPJ completo, nem na listagem nem no detalhe. Para FINANCE, o backend usa projeção ou DTO específico minimizado; é proibido reutilizar o DTO administrativo integral e apenas ocultar campos no Angular. STOCK_OPERATOR não acessa o módulo. Nenhum perfil FINANCE recebe escrita. Autorização e minimização são aplicadas no backend; Angular controla apenas navegação e visibilidade.
 
-Na SPA, criar rota e guard específico de clientes após aprovação da matriz. A UI deve ocultar ações sem authority, tratar 401/403 e ainda deixar o backend impor todas as regras. A chamada `/me` permanece fonte de authorities de interface.
+Na SPA, criar rota e guard específico de clientes conforme a matriz consolidada. A UI deve ocultar ações sem authority, tratar 401/403 e ainda deixar o backend impor todas as regras. A chamada `/me` permanece fonte de authorities de interface. FINANCE deve ver somente dados minimizados e não deve receber o documento completo via API para apenas ocultá-lo visualmente.
 
 ## 8. Arquitetura de implementação futura
 
@@ -227,7 +228,7 @@ Na SPA, criar rota e guard específico de clientes após aprovação da matriz. 
 ### Impactos arquiteturais
 
 1. O handler global acopla `platform.error` a `CatalogExceptions`; a expansão de conflitos/not-found para clientes justifica abstrair erros comuns ou registrar handlers sem dependência circular.
-2. Dados pessoais demandam autorização e minimização distintas do catálogo. FINANCE e SALES não devem receber automaticamente o mesmo escopo de leitura do catálogo.
+2. Dados pessoais demandam autorização e minimização distintas do catálogo; projeções por perfil seguem a regra consolidada da seção 7.
 3. A futura relação com vendas precisa preservar histórico mesmo após desativação e precisa decidir snapshot de dados do cliente no pedido.
 4. A normalização de documento deve ser idêntica entre aplicação e índice único; restrição PostgreSQL é a última barreira para concorrência.
 5. Endereço embutido é simples para MVP; múltiplos endereços/contatos no futuro exigem migração de modelo e contrato, portanto não prometer essa cardinalidade agora.
@@ -240,29 +241,31 @@ Na SPA, criar rota e guard específico de clientes após aprovação da matriz. 
 | `personType` | Obrigatório, enum conhecido. |
 | `name` | Obrigatório, trim, 1–160 caracteres. |
 | `tradeName` | Opcional, máximo 160; somente PJ. |
-| `document` | Obrigatório; CPF 11 ou CNPJ 14 dígitos canônicos, dígitos verificadores válidos; string, preservar zeros iniciais. |
-| `stateRegistration` | Opcional, máximo 32; somente PJ; regras estaduais/isento a decidir. |
+| `document` | Obrigatório como string; CPF com 11 dígitos numéricos ou CNPJ com 14 posições (numérico legado ou alfanumérico vigente); remover máscara, preservar zeros, normalizar letras para maiúsculas sem conversão para números e validar conforme documentação oficial vigente da Receita Federal. |
+| `stateRegistration` | Opcional, máximo 32; somente PJ; sem validação estadual complexa nem regra especial de isenção/produtor rural no MVP. |
 | `email` | Opcional, trim, máximo 254, validação sintática prática sem prometer existência/entregabilidade. |
 | `phone` | Opcional, máximo 32; preservar `+`; normalização e extensão a decidir. |
-| `postalCode` | Opcional, máximo 16; CEP brasileiro ou código internacional conforme decisão. |
-| Campos de endereço | Opcionais; limites conforme modelo; sem exigir preenchimento parcial/coerente até definição. |
-| `active`, `id`, timestamps | Não aceitos em DTO de escrita. |
+| `address` | Opcional; objeto com `postalCode`, `street`, `number`, `complement`, `neighborhood`, `city`, `state` e `countryCode`; todos os campos opcionais. Se todos ausentes, resposta `null`. |
+| `postalCode` | Texto; quando o país é `BR`, CEP normalizado para oito dígitos, removendo máscara. Para outros códigos de país, não aplicar formatação numérica brasileira. Sem consulta externa de CEP. |
+| `countryCode` | Código ISO 3166-1 alpha-2; se endereço informado não trouxer país, padrão `BR`. |
+| Campos de endereço | Persistidos como colunas em `erp.customers`; não criar tabela de endereços. Não consultar ou validar endereço externamente. |
+| `active`, `id`, `createdAt`, `updatedAt` | Não aceitos em DTO de escrita. Somente `createdAt` e `updatedAt` são mantidos no MVP; sem `createdBy`, `updatedBy` ou histórico de auditoria. |
 | Campos desconhecidos | Definir política Jackson: não aceitar ou ignorar; seguir configuração real do projeto, sem afirmar comportamento não confirmado. |
 
-Validação de CPF/CNPJ deve ter testes para válidos, inválidos, comprimento errado, pontuação aceita, entrada malformada, zero inicial e casos limite de sequências repetidas. Duplicidade concorrente deve ser garantida por índice unique e convertida em 409 sem revelar dados de outro cliente.
+Validação de CPF/CNPJ deve ter testes alinhados à documentação oficial vigente da Receita Federal, cobrindo CPF, CNPJ numérico legado e CNPJ alfanumérico vigente, válidos/inválidos, tamanho, pontuação aceita, entrada malformada e zeros iniciais. Não codificar algoritmo derivado desta especificação. Duplicidade concorrente deve ser garantida por índice unique e convertida em 409 sem revelar dados de outro cliente.
 
 ## 10. Testes previstos
 
 ### Backend
 
 - Unitários de normalização/validação CPF e CNPJ, regras condicionais PF/PJ, campos opcionais, nome trimado e documento com zeros iniciais.
-- Controller HTTP real: rotas, JSON, UUID, `201`/Location, `200`, `204`, `400` com `errors`, `404`, `409`, `401` e `403` por role.
+- Controller HTTP real: rotas, JSON com documento sempre string, CNPJ alfanumérico sem conversão, UUID, `201`/Location, `200`, `204`, `400` com `errors`, `404`, `409`, `401` e `403` por role.
 - Service: criação, PUT completo, ausência de mudança de situação em PUT, duplicidade consigo mesmo vs. outro registro, duplicidade com inativo e desativação idempotente.
-- Repository/PostgreSQL: constraints, índice único, normalização, busca e paginação/ordenação, concorrência de documentos duplicados.
+- Repository/PostgreSQL: constraints, `VARCHAR(14)`, índice único sobre a representação canônica, equivalência de caixa após normalização, busca e paginação/ordenação, concorrência de documentos duplicados.
 - Migration Flyway executada em PostgreSQL; nenhuma exclusão/alteração destrutiva em migrations anteriores.
-- Segurança: matriz integral por método e role, incluindo perfil desconhecido e ausência de token.
+- Segurança: matriz integral por método e role, incluindo perfil desconhecido e ausência de token; verificar que FINANCE usa projeção/DTO próprio sem CPF/CNPJ completo e não consegue filtrar por documento.
 - OpenAPI: paths, métodos, schemas, enum, formatos, filtros, respostas e bearer auth.
-- Se regras de venda forem implementadas depois: rejeição de cliente inativo no momento de uso decidido; associação/histórico continua disponível.
+- No módulo `sales`: testar quando a situação ativa do cliente é verificada nas operações comerciais e como o snapshot histórico mantém os dados definidos por aquele módulo.
 
 ### Angular (fase futura)
 
@@ -275,30 +278,23 @@ Validação de CPF/CNPJ deve ter testes para válidos, inválidos, comprimento e
 ## 11. Critérios de aceite da especificação
 
 1. Escopo diferencia PF/PJ e lista dados obrigatórios/opcionais sem criar endpoints ou campos como implementação existente.
-2. CPF/CNPJ têm normalização canônica, verificação de dígitos, unicidade e comportamento de duplicidade explícitos.
+2. CPF/CNPJ são strings; CPF tem 11 dígitos e CNPJ 14 posições em `VARCHAR(14)`. CNPJ alfanumérico preserva letras e números, normaliza caixa sem conversões, e a unicidade global (ativos/inativos) usa exatamente a representação canônica sem máscara; duplicidade retorna 409 e documento não pode ser reutilizado.
 3. PUT completo, desativação lógica e efeito em vendas futuras têm regras e lacunas documentadas.
 4. Modelo proposto define tipos, constraints, índices e compatibilidade com UUID, timestamps, schema `erp` e Flyway append-only.
 5. API proposta define operações, paginação, filtros, DTOs, respostas, erros, datas, identificadores e documentos.
-6. A matriz de segurança é apresentada como proposta e não altera a matriz atual.
-7. Dados pessoais, auditoria e minimização estão identificados como preocupação e decisão de negócio/jurídica.
+6. A matriz consolidada é ADMIN/MANAGER: acesso completo; SALES: finalidade comercial, leitura/criação/edição sem desativação; FINANCE: somente leitura, sem filtro por documento e com projeção/DTO próprio sem CPF/CNPJ completo; STOCK_OPERATOR: sem acesso. Autorização e minimização ocorrem no backend.
+7. Dados pessoais têm acesso minimizado. Auditoria do MVP limita-se a `createdAt` e `updatedAt`, sem tabela/histórico, `createdBy` ou `updatedBy`; auditoria completa fica como evolução futura.
 8. Testes de backend, integração PostgreSQL, segurança, OpenAPI e Angular futuro estão especificados.
-9. Nenhum código, migration, dependência ou contrato existente é alterado nesta etapa.
+9. Cliente inativo permanece consultável para histórico e não pode ser usado em novas vendas; validação na criação/confirmação e snapshots ficam especificados no módulo `sales`.
+10. Endereço é objeto opcional, com oito campos opcionais persistidos em colunas de `erp.customers`, `null` quando vazio, CEP brasileiro normalizado para oito dígitos e `countryCode` ISO alpha-2 com padrão `BR` quando endereço é informado.
+11. Busca/filtros, paginação zero-based, tamanho 20/máximo 100, sort padrão `name,asc`, allowlist, múltiplos `sort` e erro 400 para campo de ordenação desconhecido estão definidos; FINANCE não pode buscar por documento e recebe apenas projeção minimizada do backend.
+12. Nenhum código, migration, dependência ou contrato existente é alterado nesta etapa.
 
 ## 12. Decisões pendentes antes de C-02
 
-1. Confirmar nomenclatura do campo `name` para PF/razão social e se `tradeName` só se aplica a PJ.
-2. Aprovar cadastro nacional apenas com CPF/CNPJ ou prever pessoa estrangeira/documento alternativo.
-3. Aprovar unicidade global incluindo clientes inativos e proibição de reutilização do documento.
-4. Definir tratamento de inscrição estadual isenta, produtor rural e regras por UF.
-5. Definir quais campos de endereço são necessários no MVP, regra de CEP e se `countryCode` é ISO alpha-2.
-6. Decidir se observações internas entram no MVP e quais perfis podem lê-las.
-7. Aprovar matriz de acesso específica de clientes, sobretudo SALES para escrita/desativação e FINANCE para leitura, e se documento será mascarado.
-8. Definir se existe reativação e, se sim, fluxo/roles/auditoria; proposta atual não contempla.
-9. Para vendas, definir quando cliente inativo é bloqueado e quais dados são congelados no pedido.
-10. Definir política de auditoria, retenção, correção/exclusão e atendimento LGPD para documentos e contatos.
-11. Decidir DTO de endereço aninhado vs. campos planos e o tratamento de endereço totalmente vazio (`null` vs. objeto vazio).
-12. Confirmar allowlist de ordenação e tamanho/política de busca por documento.
-13. Definir caso de uso de auditoria de mudanças: regra baseline pede autoria/momento para mudanças relevantes, mas o catálogo atualmente apenas mantém timestamps; determinar se clientes exigirão audit trail desde o primeiro release.
+1. No módulo `sales`, definir em quais operações será verificada a situação ativa do cliente e quais dados serão congelados no snapshot histórico, incluindo endereço de entrega.
+2. Definir requisitos LGPD de retenção, correção, exportação e anonimização dos dados pessoais.
+3. Documentar na implementação a referência exata à documentação oficial vigente da Receita Federal usada para validar CPF e CNPJ alfanumérico; não derivar algoritmo de fontes não oficiais.
 
 ## Referências internas analisadas
 
