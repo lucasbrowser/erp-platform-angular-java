@@ -3,8 +3,13 @@ package com.erp.core.customers.domain;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 
+import java.util.Locale;
+import java.util.regex.Pattern;
+
 @Embeddable
 public class CustomerAddress {
+    private static final Pattern COUNTRY_CODE = Pattern.compile("[A-Za-z]{2}");
+
     @Column(name = "postal_code", length = 16)
     private String postalCode;
 
@@ -33,14 +38,32 @@ public class CustomerAddress {
 
     public CustomerAddress(String postalCode, String street, String number, String complement,
                            String neighborhood, String city, String state, String countryCode) {
-        this.postalCode = postalCode;
-        this.street = street;
-        this.number = number;
-        this.complement = complement;
-        this.neighborhood = neighborhood;
-        this.city = city;
-        this.state = state;
-        this.countryCode = countryCode;
+        this.postalCode = optionalLength(postalCode, "CEP", 16);
+        this.street = optionalLength(street, "Logradouro", 160);
+        this.number = optionalLength(number, "Número do endereço", 32);
+        this.complement = optionalLength(complement, "Complemento", 120);
+        this.neighborhood = optionalLength(neighborhood, "Bairro", 120);
+        this.city = optionalLength(city, "Cidade", 120);
+        this.state = optionalLength(state, "Estado", 64);
+        this.countryCode = normalizeCountryCode(countryCode);
+    }
+
+    private static String optionalLength(String value, String field, int maxLength) {
+        if (value != null && value.codePointCount(0, value.length()) > maxLength) {
+            throw new IllegalArgumentException(field + " excede o limite de " + maxLength + " caracteres.");
+        }
+        return value;
+    }
+
+    private static String normalizeCountryCode(String countryCode) {
+        if (countryCode == null) {
+            return null;
+        }
+        String normalized = countryCode.strip();
+        if (!COUNTRY_CODE.matcher(normalized).matches()) {
+            throw new IllegalArgumentException("Código do país deve usar duas letras ISO alpha-2.");
+        }
+        return normalized.toUpperCase(Locale.ROOT);
     }
 
     public String getPostalCode() { return postalCode; }

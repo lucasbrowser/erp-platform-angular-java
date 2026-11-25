@@ -52,18 +52,18 @@ class CustomerPersistenceIntegrationTest {
     @Test
     void persistsIndividualAndCompanyWithCanonicalDocumentStrings() {
         Customer individual = customers.saveAndFlush(customer(
-                PersonType.INDIVIDUAL, "Pessoa Física", "12345678901", null, null));
+                PersonType.INDIVIDUAL, "Pessoa Física", "01234567890", null, null));
         Customer company = customers.saveAndFlush(customer(
-                PersonType.COMPANY, "Empresa Exemplo", "12AB34567890CD", "Exemplo", "IE-123"));
+                PersonType.COMPANY, "Empresa Exemplo", "12ABC34501DE35", "Exemplo", "IE-123"));
 
         assertThat(customers.findById(individual.getId()).orElseThrow().getPersonType())
                 .isEqualTo(PersonType.INDIVIDUAL);
         assertThat(customers.findById(individual.getId()).orElseThrow().getDocument())
-                .isEqualTo("12345678901");
+                .isEqualTo("01234567890");
         assertThat(customers.findById(company.getId()).orElseThrow().getPersonType())
                 .isEqualTo(PersonType.COMPANY);
         assertThat(customers.findById(company.getId()).orElseThrow().getDocument())
-                .isEqualTo("12AB34567890CD");
+                .isEqualTo("12ABC34501DE35");
         assertThat(customers.findById(company.getId()).orElseThrow().getTradeName())
                 .isEqualTo("Exemplo");
     }
@@ -73,13 +73,13 @@ class CustomerPersistenceIntegrationTest {
         Customer withAddress = customers.saveAndFlush(customer(
                 PersonType.COMPANY,
                 "Empresa com endereço",
-                "98AB76543210CD",
+                "12ABC34501DE35",
                 null,
                 null,
                 new CustomerAddress("78000000", "Rua Central", "100", "Sala 2",
                         "Centro", "Cuiabá", "MT", "BR")));
         Customer withoutAddress = customers.saveAndFlush(customer(
-                PersonType.INDIVIDUAL, "Pessoa sem endereço", "98765432100", null, null));
+                PersonType.INDIVIDUAL, "Pessoa sem endereço", "28001238938", null, null));
 
         Customer loadedWithAddress = customers.findById(withAddress.getId()).orElseThrow();
         assertThat(loadedWithAddress.getAddress()).isNotNull();
@@ -97,13 +97,13 @@ class CustomerPersistenceIntegrationTest {
     @Test
     void documentIsUniqueEvenWhenExistingCustomerIsInactive() {
         Customer original = customers.saveAndFlush(customer(
-                PersonType.COMPANY, "Cliente inativo", "12AB34567890CD", null, null));
+                PersonType.COMPANY, "Cliente inativo", "12ABC34501DE35", null, null));
         jdbc.update("UPDATE erp.customers SET active = false WHERE id = ?", original.getId());
 
         assertThatThrownBy(() -> jdbc.update(
                 "INSERT INTO erp.customers (id, person_type, name, document, active, created_at, updated_at) "
                         + "VALUES (?, 'COMPANY', 'Documento repetido', ?, true, ?, ?)",
-                UUID.randomUUID(), "12AB34567890CD", Timestamp.from(Instant.now()), Timestamp.from(Instant.now())))
+                UUID.randomUUID(), "12ABC34501DE35", Timestamp.from(Instant.now()), Timestamp.from(Instant.now())))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

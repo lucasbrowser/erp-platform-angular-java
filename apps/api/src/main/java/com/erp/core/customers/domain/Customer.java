@@ -12,10 +12,13 @@ import jakarta.persistence.Table;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Entity
 @Table(name = "customers", schema = "erp")
 public class Customer {
+    private static final Pattern BASIC_EMAIL = Pattern.compile("[^\\s@]+@[^\\s@]+\\.[^\\s@]+");
+
     @Id
     private UUID id;
 
@@ -57,16 +60,74 @@ public class Customer {
 
     public Customer(PersonType personType, String name, String tradeName, String document,
                     String stateRegistration, String email, String phone, CustomerAddress address) {
+        if (personType == null) {
+            throw new IllegalArgumentException("Tipo de pessoa é obrigatório.");
+        }
         this.id = UUID.randomUUID();
         this.personType = personType;
-        this.name = name;
-        this.tradeName = tradeName;
-        this.document = document;
-        this.stateRegistration = stateRegistration;
-        this.email = email;
-        this.phone = phone;
+        this.name = requiredTrimmed(name, "Nome", 160);
+        this.tradeName = optionalLength(tradeName, "Nome fantasia", 160);
+        this.document = normalizeAndValidateDocument(personType, document);
+        this.stateRegistration = optionalLength(stateRegistration, "Inscrição estadual", 32);
+        this.email = normalizeEmail(email);
+        this.phone = optionalLength(phone, "Telefone", 32);
+        if (personType == PersonType.INDIVIDUAL && this.tradeName != null) {
+            throw new IllegalArgumentException("Nome fantasia não é permitido para pessoa física.");
+        }
+        if (personType == PersonType.INDIVIDUAL && this.stateRegistration != null) {
+            throw new IllegalArgumentException("Inscrição estadual não é permitida para pessoa física.");
+        }
         this.address = address;
         this.active = true;
+    }
+
+    private static String requiredTrimmed(String value, String field, int maxLength) {
+        if (value == null) {
+            throw new IllegalArgumentException(field + " é obrigatório.");
+        }
+        String normalized = value.strip();
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException(field + " é obrigatório.");
+        }
+        return optionalLength(normalized, field, maxLength);
+    }
+
+    private static String optionalLength(String value, String field, int maxLength) {
+        if (value != null && value.codePointCount(0, value.length()) > maxLength) {
+            throw new IllegalArgumentException(field + " excede o limite de " + maxLength + " caracteres.");
+        }
+        return value;
+    }
+
+    private static String normalizeEmail(String email) {
+        if (email == null) {
+            return null;
+        }
+        String normalized = email.strip();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        optionalLength(normalized, "E-mail", 254);
+        if (!BASIC_EMAIL.matcher(normalized).matches()) {
+            throw new IllegalArgumentException("Formato de e-mail inválido.");
+        }
+        return normalized;
+    }
+
+    private static String normalizeAndValidateDocument(PersonType personType, String document) {
+        if (personType == PersonType.INDIVIDUAL) {
+            String cpf = TaxDocumentNormalizer.normalizeCpf(document);
+            if (!TaxDocumentValidator.isValidCpf(cpf)) {
+                throw new IllegalArgumentException("CPF inválido.");
+            }
+            return cpf;
+        }
+
+        String cnpj = TaxDocumentNormalizer.normalizeCnpj(document);
+        if (!TaxDocumentValidator.isValidCnpj(cnpj)) {
+            throw new IllegalArgumentException("CNPJ inválido.");
+        }
+        return cnpj;
     }
 
     @PrePersist
