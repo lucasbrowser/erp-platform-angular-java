@@ -1,6 +1,6 @@
 # C-01 — Especificação do módulo de clientes
 
-**Status:** regras funcionais e decisões técnicas consolidadas para revisão; nenhuma implementação foi iniciada.
+**Status:** regras funcionais e decisões técnicas aprovadas; persistência JPA/Flyway e validação local de CPF/CNPJ no domínio implementadas nas etapas C-02.1 e C-02.2-A. API de clientes e CRUD permanecem fora desta etapa.
 
 ## 1. Objetivo e escopo
 
@@ -22,7 +22,7 @@ A especificação não cria endpoint ou permissão em funcionamento. As regras f
 - As migrations são SQL Flyway versionado e append-only em `apps/api/src/main/resources/db/migration`; o schema de negócio é `erp`. Entidades existentes armazenam `active`, `created_at` e `updated_at` (`TIMESTAMPTZ`).
 - Frontend usa Angular standalone, rotas protegidas por `authGuard`, guards por authorities obtidas da API `/api/v1/platform/me`, serviços `HttpClient` por feature e testes com Angular Testing/Vitest. Guards controlam a navegação e visibilidade; autorização efetiva é sempre da API.
 - Segurança é stateless, OIDC Keycloak com access token JWT, audiência `erp-core-api`, roles do realm convertidas a `ROLE_*`, deny-by-default e CORS restrito. Apenas health é público.
-- OpenAPI existente documenta categorias e produtos e usa bearer JWT global, schemas reutilizados, PageResponse e Problem Details. Clientes ainda não têm contrato nem código no backend; `sales` e `finance` ainda são apenas pacotes de módulo sem domínio implementado.
+- OpenAPI existente documenta categorias e produtos e usa bearer JWT global, schemas reutilizados, PageResponse e Problem Details. O módulo `customers` já possui modelo de persistência e validação local de documentos no domínio, mas ainda não possui endpoints nem contrato OpenAPI; `sales` e `finance` ainda são apenas pacotes de módulo sem domínio implementado.
 
 ## 3. Requisitos funcionais propostos
 
@@ -68,7 +68,8 @@ A especificação não cria endpoint ou permissão em funcionamento. As regras f
 
 - CPF possui 11 dígitos numéricos. CNPJ possui 14 posições e deve suportar tanto o formato numérico legado quanto o formato alfanumérico vigente.
 - Aceitar os formatos sem máscara e as máscaras oficiais aplicáveis; remover as máscaras na normalização. Persistir e transportar documento como string canônica sem máscara. Para CNPJ alfanumérico, normalizar letras para maiúsculas de forma consistente, preservar letras e números nas posições correspondentes e nunca converter letras em números. A forma canônica final deve seguir a documentação oficial vigente.
-- Validar formato e dígitos verificadores no backend, de acordo com a documentação oficial vigente da Receita Federal para CPF e CNPJ, incluindo o CNPJ alfanumérico. Esta especificação não descreve nem inventa algoritmos; a implementação deverá consultar e referenciar a documentação oficial aplicável no momento do desenvolvimento.
+- Validar formato e dígitos verificadores no backend conforme a documentação oficial vigente da Receita Federal para CPF e CNPJ, incluindo o CNPJ alfanumérico. A validação implementada é local e usa exclusivamente as referências oficiais registradas abaixo; não confirma inscrição, situação cadastral ou titularidade.
+- Referências oficiais consultadas para esta implementação em 25/11/2026: [Manual de Preenchimento da e-Financeira, Anexo V — Leiaute do Módulo de Repasse, versão 2.0.1 (dezembro/2024)](https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/manuais/sped/manuais-e-financeira/versao-2.x/manual-e-financeira-anexo-v-versao-2-0-1-leiaute-modulo-de-repasse.pdf), publicado pela Receita Federal, seção de validação CPF; [Manual de Cálculo do DV do CNPJ Alfanumérico](https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/documentos-tecnicos/cnpj/manual-dv-cnpj.pdf), documentação técnica publicada no portal da Receita Federal em 05/11/2024 e página atualizada em 11/07/2025; [Instrução Normativa RFB nº 2.229, de 15/10/2024](https://normas.receita.fazenda.gov.br/sijut2consulta/link.action?idAto=141102), que estabelece o formato alfanumérico; e [perguntas e respostas oficiais sobre CNPJ alfanumérico](https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/perguntas-e-respostas/cnpj/cnpj-alfanumerico.pdf), que contém o exemplo `12.ABC.345/01DE-35`. Os exemplos CPF `280012389-38` e CNPJ numérico `18.781.203/0001-28` dos testes constam do manual da e-Financeira. O CPF `01234567890` usado para conferir zeros iniciais foi calculado pelo procedimento do mesmo manual: somas ponderadas 240 e 285 produzem os dígitos 9 e 0. A consulta local verifica formato e dígitos; não confirma inscrição, situação cadastral ou titularidade na Receita Federal.
 - Não consultar a Receita Federal nem qualquer serviço externo. A validação local não confirma situação cadastral ou titularidade.
 - A validação deve ocorrer no backend independentemente do frontend. Respostas não devem depender de texto interno de erro para determinar lógica.
 
