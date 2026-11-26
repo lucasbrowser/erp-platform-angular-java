@@ -1,5 +1,7 @@
 # Validação da fundação
 
+> **Registro cronológico:** este arquivo preserva resultados de etapas e datas diferentes. Um resultado histórico não valida automaticamente o código atual. Para o retrato corrente de módulos, consulte [architecture.md](architecture.md); para aprovar uma mudança, execute novamente os critérios exigidos na tarefa e registre novos resultados sem apagar evidências anteriores.
+
 ## Gestão de categorias Angular (2026-10-30)
 
 ### Implementação

@@ -1,5 +1,7 @@
 # Requisitos
 
+> **Baseline de requisitos:** este arquivo mantém requisitos e critérios registrados na fundação. Trechos que dizem que a API limita-se a infraestrutura/health descrevem aquele marco, não o estado atual; consulte [arquitetura atual](architecture.md) e [validações registradas](validation.md). Requisitos futuros continuam não implementados até haver código e evidência.
+
 ## Funcionais (produto futuro)
 
 - RF-01: manter cadastros mestres conforme módulos aprovados pelo negócio.

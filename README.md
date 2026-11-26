@@ -1,6 +1,6 @@
 # ERP Core
 
-Fundação técnica de um ERP modular em monólito. Esta fase entrega estrutura, contratos e infraestrutura inicial; não inclui funcionalidades de negócio nem autenticação de negócio completa.
+ERP em monólito modular com backend Spring Boot, frontend Angular, PostgreSQL/Flyway e identidade OIDC via Keycloak. O repositório evoluiu além da fundação inicial: catálogo e integração OIDC estão implementados; o domínio/persistência de clientes está em desenvolvimento, sem API CRUD ou feature Angular de clientes nesta revisão. Consulte [docs/architecture.md](docs/architecture.md) para o estado atual e [docs/validation.md](docs/validation.md) para evidências e limitações de validação.
 
 ## Estrutura
 
@@ -9,6 +9,14 @@ Fundação técnica de um ERP modular em monólito. Esta fase entrega estrutura,
 - `infra`: Docker Compose e configuração local.
 - `docs`: visão, requisitos, domínio, segurança, API, ADRs e backlog.
 - `.github/workflows`: integração contínua.
+
+## Documentação
+
+- [Arquitetura atual](docs/architecture.md), [padrões de código](docs/coding-standards.md), [testes](docs/testing-strategy.md) e [banco de dados](docs/database-conventions.md).
+- [Decisões arquiteturais](docs/decisions/), [especificações](docs/specs/) e [segurança](docs/security/README.md).
+- [Instruções para agentes](AGENTS.md) e [índice de prompts](prompts/README.md).
+
+Alguns documentos de produto, requisitos, domínio e backlog descrevem a baseline da fundação ou funcionalidades futuras. Eles foram preservados; não devem ser interpretados isoladamente como inventário de funcionalidades atuais. Use os guias de arquitetura/validação e o código para distinguir implementado, validado e planejado.
 
 ## Pré-requisitos fixados
 

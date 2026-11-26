@@ -1,5 +1,7 @@
 # Modelo de segurança
 
+> **Estado e escopo:** OIDC, validação de access token e autorização do catálogo estão implementados conforme descrito. A tabela abaixo também registra matriz de módulos futuros; linhas de vendas, estoque, financeiro ou outras operações sem endpoint correspondente são propostas de negócio, não comportamento já disponível. Para clientes, consulte a matriz aprovada em [specs/customers.md](specs/customers.md).
+
 ## Identidade e tokens
 
 - Keycloak 26.7.3 emite tokens OIDC; a API Spring Security é OAuth 2.0 Resource Server e não armazena senhas, não autentica credenciais próprias e não emite tokens.
@@ -7,7 +9,7 @@
 - A SPA usa o adaptador oficial `keycloak-js` 26.2.5. O callback é `/auth/callback`, a verificação silenciosa usa `/silent-check-sso.html` e os tokens permanecem somente na memória do adaptador; `sessionStorage` guarda apenas a rota interna de retorno durante o redirecionamento.
 - O interceptor do frontend só anexa bearer a URLs com a mesma origem e o caminho base configurado da API (`http://localhost:8082/api` no desenvolvimento). Ele atualiza o access token antes da chamada e deixa requisições a outros hosts, inclusive Keycloak, sem token. Um 401 não inicia login automático; 403 deve ser apresentado pela tela que solicitou a operação.
 - Rotas privadas usam guard apenas para navegação. A autorização real continua obrigatória na API Spring Security. A tela de início é apenas uma página autenticada de fundação e não implementa catálogo.
-- A página autenticada consulta `GET /api/v1/platform/me` e exibe apenas `userId` e authorities devolvidas pela API; respostas 401, 403 e demais falhas são tratadas separadamente. Ela não deriva a identidade do token no cliente.
+- A página inicial autenticada consulta `GET /api/v1/platform/me` e exibe apenas `userId` e authorities devolvidas pela API; respostas 401, 403 e demais falhas são tratadas separadamente. Ela não deriva a identidade do token no cliente. O catálogo é uma feature separada da página inicial.
 - A API aceita somente **access tokens** cujo issuer seja `http://localhost:8081/realms/erp-core`, cuja assinatura seja verificada com o JWKS desse issuer e cuja audiência contenha `erp-core-api`. ID tokens não são credenciais de API.
 - Validação de assinatura, `iss`, `exp`/`nbf` e audiência é obrigatória. Falha ou ausência de bearer token resulta em 401; usuário autenticado sem autoridade exigida resulta em 403.
 - Roles reconhecidas vêm de `realm_access.roles` e são convertidas para authorities `ROLE_*`. Claims desconhecidas não concedem acesso. O frontend pode ocultar ações, mas toda autorização deve ser aplicada no servidor, por operação.

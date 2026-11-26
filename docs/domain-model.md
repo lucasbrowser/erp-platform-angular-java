@@ -1,5 +1,7 @@
 # Modelo de domínio inicial
 
+> **Baseline histórica:** este modelo foi escrito para a fundação e ainda não representa todos os módulos materializados depois. Consulte [arquitetura atual](architecture.md) e as especificações em `specs/` para distinguir domínio implementado de evolução planejada.
+
 O modelo da fundação era conceitual. A Etapa 3.1 materializa o primeiro módulo de negócio, o Catálogo. O MVP representa **uma única empresa**; não há entidade Organização/Tenant nem coluna de tenant nos dados.
 
 ```text

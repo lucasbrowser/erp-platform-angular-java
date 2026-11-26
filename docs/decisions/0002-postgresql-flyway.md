@@ -9,7 +9,7 @@
 
 ## Decisão
 
-Usar PostgreSQL 17.11 na infraestrutura local e Flyway via integração gerenciada pelo Spring Boot 3.5.16. A versão 17 é o limite atualmente suportado pela versão de Flyway gerenciada pelo Spring Boot. Migrações ficam em `apps/api/src/main/resources/db/migration`, são SQL versionado e append-only. Nesta fase há apenas migração sem alterações de esquema.
+Usar PostgreSQL 17.11 na infraestrutura local e Flyway via integração gerenciada pelo Spring Boot 3.5.16. A versão 17 é o limite atualmente suportado pela versão de Flyway gerenciada pelo Spring Boot. Migrações ficam em `apps/api/src/main/resources/db/migration`, são SQL versionado e append-only. **Na data de aceitação deste ADR**, havia somente a migration de fundação e nenhuma alteração de esquema de negócio; o estado atual de migrations está documentado em [database-conventions.md](../database-conventions.md).
 
 ## Consequências
 

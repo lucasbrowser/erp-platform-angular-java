@@ -1,6 +1,6 @@
 # C-01 — Especificação do módulo de clientes
 
-**Status:** regras funcionais e decisões técnicas aprovadas; persistência JPA/Flyway e validação local de CPF/CNPJ no domínio implementadas nas etapas C-02.1 e C-02.2-A. API de clientes e CRUD permanecem fora desta etapa.
+**Status:** regras funcionais e decisões técnicas aprovadas. Entidades e persistência JPA/Flyway, regras de domínio PF/PJ, normalização/validação local de CPF/CNPJ e infraestrutura de filtros/ordenação estão implementadas nas etapas C-02.1 a C-02.3-B1. A API REST/CRUD e a feature Angular de clientes não estão implementadas. A integração PostgreSQL da ordenação C-02.3-B2 aguarda execução/validação após correções das expectativas e fixtures; não considerar essa etapa validada sem os comandos exigidos.
 
 ## 1. Objetivo e escopo
 
@@ -8,7 +8,7 @@ Especificar o cadastro mestre de clientes para uso futuro em vendas, seguindo o 
 
 Inclui cadastro de pessoa física e jurídica, consulta, pesquisa paginada, atualização completa e desativação lógica. Não inclui pedidos, emissão fiscal, consulta externa de CPF/CNPJ, integração com Receita Federal, cobrança, importação em massa ou armazenamento de documentos anexos.
 
-A especificação não cria endpoint ou permissão em funcionamento. As regras funcionais e técnicas consolidadas abaixo foram aprovadas para orientar a implementação. Permanecem explicitamente pendentes apenas os pontos indicados na seção 12, incluindo os que dependem do módulo `sales` ou de avaliação jurídica.
+A especificação não cria endpoint ou permissão em funcionamento. As regras funcionais e técnicas consolidadas abaixo orientam a implementação. O estado de implementação parcial é descrito no status acima; os pontos da seção 12, inclusive os dependentes do módulo `sales` ou de avaliação jurídica, permanecem pendentes.
 
 ## 2. Padrões existentes observados
 

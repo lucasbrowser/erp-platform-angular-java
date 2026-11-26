@@ -1,5 +1,7 @@
 # Backlog — Fase 1: Fundação técnica
 
+> **Registro histórico:** este backlog acompanha a Fase 1 e suas etapas registradas, não é o backlog completo nem o estado geral atual do produto. As caixas indicam o resultado declarado naquele contexto; valide o estado atual em [arquitetura](architecture.md), [validações](validation.md) e especificações posteriores.
+
 - [x] Inspecionar repositório e ferramentas disponíveis.
 - [x] Especificar visão, requisitos, regras, domínio, segurança, API e decisões.
 - [x] Criar monorepo e esqueletos backend/frontend.

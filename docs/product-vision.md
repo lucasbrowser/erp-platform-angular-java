@@ -1,5 +1,7 @@
 # Visão e escopo do produto
 
+> **Baseline histórica:** a seção “Escopo desta fase” registra a fundação inicial e não o inventário atual do repositório. Para o estado implementado, consulte [arquitetura atual](architecture.md) e [validações registradas](validation.md); decisões de produto continuam válidas apenas onde não forem superadas por especificações aprovadas.
+
 ## Visão
 
 ERP Core será uma plataforma web para apoiar operações administrativas de uma pequena ou média empresa, com módulos coesos sobre uma base única de dados, identidade e auditoria. O MVP atende uma empresa e seus múltiplos usuários; multi-tenancy não faz parte do escopo.
