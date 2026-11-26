@@ -13,6 +13,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -285,6 +287,133 @@ class CustomerSearchIntegrationTest {
         assertThat(page.getTotalPages()).isZero();
     }
 
+    @Test
+    void sortsByEveryAllowlistedDatabaseField() {
+        Customer zulu = customer(PersonType.INDIVIDUAL, "Zulu", "28001238938");
+        Customer alpha = customer(PersonType.COMPANY, "Alpha", "12ABC34501DE35");
+        Customer beta = customer(PersonType.COMPANY, "Beta", "18781203000128");
+        setActive(beta, false);
+        setTimestamps(zulu, "2024-01-03T00:00:00Z", "2024-02-03T00:00:00Z");
+        setTimestamps(alpha, "2024-01-01T00:00:00Z", "2024-02-01T00:00:00Z");
+        setTimestamps(beta, "2024-01-02T00:00:00Z", "2024-02-02T00:00:00Z");
+
+        assertSorted(List.of("name,asc"), alpha, beta, zulu);
+        assertSorted(List.of("document,asc"), alpha, beta, zulu);
+        assertSorted(List.of("personType,asc", "name,asc"), alpha, beta, zulu);
+        assertSorted(List.of("personType,desc", "name,asc"), zulu, alpha, beta);
+        assertSorted(List.of("active,asc", "name,asc"), beta, alpha, zulu);
+        assertSorted(List.of("active,desc", "name,asc"), alpha, zulu, beta);
+        assertSorted(List.of("createdAt,asc"), alpha, beta, zulu);
+        assertSorted(List.of("createdAt,desc"), zulu, beta, alpha);
+        assertSorted(List.of("updatedAt,asc"), alpha, beta, zulu);
+        assertSorted(List.of("updatedAt,desc"), zulu, beta, alpha);
+    }
+
+    @Test
+    void sortsInBothDirectionsAndAppliesDefaultNameAscendingInPostgres() {
+        Customer zulu = customer(PersonType.COMPANY, "Zulu", "12ABC34501DE35");
+        Customer alpha = customer(PersonType.COMPANY, "Alpha", "18781203000128");
+        Customer beta = customer(PersonType.INDIVIDUAL, "Beta", "28001238938");
+        setTimestamps(zulu, "2024-01-03T00:00:00Z", "2024-01-03T00:00:00Z");
+        setTimestamps(alpha, "2024-01-01T00:00:00Z", "2024-01-01T00:00:00Z");
+        setTimestamps(beta, "2024-01-02T00:00:00Z", "2024-01-02T00:00:00Z");
+
+        assertSorted(List.of("name,asc"), alpha, beta, zulu);
+        assertSorted(List.of("name,desc"), zulu, beta, alpha);
+        assertSorted(List.of("document,desc"), beta, alpha, zulu);
+        assertSorted(List.of("createdAt,desc"), zulu, beta, alpha);
+        assertThat(orderedIds(findSorted(null, null, null, null, null)))
+                .containsExactly(alpha.getId(), beta.getId(), zulu.getId());
+    }
+
+    @Test
+    void preservesTwoAndThreeCriteriaPrecedenceAndTieBreakers() {
+        Customer companyB = customer(PersonType.COMPANY, "Same", "12ABC34501DE35");
+        Customer companyA = customer(PersonType.COMPANY, "Same", "18781203000128");
+        Customer individual = customer(PersonType.INDIVIDUAL, "Same", "28001238938");
+        setActive(companyA, false);
+        setActive(companyB, false);
+        setTimestamps(companyA, "2024-01-01T00:00:00Z", "2024-01-01T00:00:00Z");
+        setTimestamps(companyB, "2024-01-03T00:00:00Z", "2024-01-03T00:00:00Z");
+        setTimestamps(individual, "2024-01-02T00:00:00Z", "2024-01-02T00:00:00Z");
+
+        assertSorted(List.of("name,asc", "document,desc"), individual, companyA, companyB);
+        assertSorted(List.of("name,asc", "personType,asc", "createdAt,desc"),
+                companyB, companyA, individual);
+        assertThat(CustomerSortPolicy.fromParameters(List.of("name,asc", "document,desc"))
+                .stream().map(Sort.Order::getProperty)).containsExactly("name", "document");
+    }
+
+    @Test
+    void combinesOrderingWithEachFilterAndCombinedFilters() {
+        Customer alphaCompanyActive = customer(PersonType.COMPANY, "Alpha Cliente", "12ABC34501DE35");
+        Customer betaCompanyInactive = customer(PersonType.COMPANY, "Beta Cliente", "18781203000128");
+        Customer alphaIndividualActive = customer(PersonType.INDIVIDUAL, "Alpha Cliente PF", "01234567890");
+        Customer alphaCompanyWrongName = customer(PersonType.COMPANY, "Alpha Fornecedor", "12345678000195");
+        setActive(betaCompanyInactive, false);
+
+        assertThat(orderedIds(findSorted("Alpha Cliente", null, null, null, List.of("name,desc"))))
+                .containsExactly(alphaIndividualActive.getId(), alphaCompanyActive.getId());
+        assertThat(orderedIds(findSorted(null, null, PersonType.COMPANY, null, List.of("name,asc"))))
+                .containsExactly(alphaCompanyActive.getId(), alphaCompanyWrongName.getId(),
+                        betaCompanyInactive.getId());
+        assertThat(orderedIds(findSorted(null, null, null, false, List.of("name,asc"))))
+                .containsExactly(betaCompanyInactive.getId());
+        assertThat(orderedIds(findSorted("Alpha", null, PersonType.COMPANY, true,
+                List.of("name,asc")))).containsExactly(alphaCompanyActive.getId(), alphaCompanyWrongName.getId());
+    }
+
+    @Test
+    void keepsSortedCriteriaConsistentAcrossDatabasePagesWithoutDuplicates() {
+        Customer alphaA = customer(PersonType.COMPANY, "Alpha", "12ABC34501DE35");
+        Customer alphaB = customer(PersonType.COMPANY, "Alpha", "18781203000128");
+        Customer beta = customer(PersonType.INDIVIDUAL, "Beta", "01234567890");
+        Customer gamma = customer(PersonType.INDIVIDUAL, "Gamma", "28001238938");
+        List<String> sort = List.of("name,asc", "document,desc");
+
+        Page<Customer> first = findSortedPage(0, 2, null, null, null, null, sort);
+        Page<Customer> second = findSortedPage(1, 2, null, null, null, null, sort);
+        List<UUID> pageIds = java.util.stream.Stream.concat(first.getContent().stream(),
+                        second.getContent().stream())
+                .map(Customer::getId).toList();
+
+        assertThat(first.getContent()).extracting(Customer::getId)
+                .containsExactly(alphaB.getId(), alphaA.getId());
+        assertThat(second.getContent()).extracting(Customer::getId)
+                .containsExactly(beta.getId(), gamma.getId());
+        assertThat(pageIds).doesNotHaveDuplicates().hasSize(4);
+        assertThat(first.getTotalElements()).isEqualTo(4);
+        assertThat(second.getTotalElements()).isEqualTo(4);
+    }
+
+    private void assertSorted(List<String> sort, Customer... expected) {
+        List<UUID> actualIds = findSorted(null, null, null, null, sort).getContent().stream()
+                .map(Customer::getId)
+                .toList();
+        List<UUID> expectedIds = java.util.Arrays.stream(expected)
+                .map(Customer::getId)
+                .toList();
+
+        assertThat(actualIds).containsExactlyElementsOf(expectedIds);
+    }
+
+    private Page<Customer> findSorted(String name, String document, PersonType personType,
+                                      Boolean active, List<String> sort) {
+        return findSortedPage(0, 100, name, document, personType, active, sort);
+    }
+
+    private Page<Customer> findSortedPage(int page, int size, String name, String document,
+                                          PersonType personType, Boolean active, List<String> sort) {
+        Pageable pageable = PageRequest.of(page, size, CustomerSortPolicy.fromParameters(sort));
+        return find(name, document, personType, active, pageable);
+    }
+
+    private void setTimestamps(Customer customer, String createdAt, String updatedAt) {
+        jdbc.update("UPDATE erp.customers SET created_at = ?, updated_at = ? WHERE id = ?",
+                Timestamp.from(Instant.parse(createdAt)), Timestamp.from(Instant.parse(updatedAt)),
+                customer.getId());
+    }
+
     private Customer customer(PersonType type, String name, String document) {
         return customers.saveAndFlush(new Customer(type, name, null, document,
                 null, null, null, null));
@@ -306,5 +435,9 @@ class CustomerSearchIntegrationTest {
 
     private Set<UUID> ids(Page<Customer> page) {
         return page.getContent().stream().map(Customer::getId).collect(Collectors.toSet());
+    }
+
+    private List<UUID> orderedIds(Page<Customer> page) {
+        return page.getContent().stream().map(Customer::getId).toList();
     }
 }
